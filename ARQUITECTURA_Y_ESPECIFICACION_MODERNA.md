@@ -75,18 +75,45 @@ Cualquier implementación del código debe apegarse estrictamente a las siguient
 
 ---
 
-## 2. Pila Tecnológica Cloud-Native ($0 Costo / Control Total)
+## 2. Pila Tecnológica Cloud-Native, Herramientas Open Source y MCP ($0 Costo)
+
+### 2.1 Herramientas y Librerías Gratuitas (Open Source) en el Cliente
+Para reemplazar por completo librerías pesadas y entornos de fondo (OpenCV, Pillow, Jinja2, Docker) por código puro en el navegador que corre en milisegundos en tu teléfono celular Android o PC sin costo:
+
+| Necesidad del Proyecto | Librería Gratuita (GitHub / NPM) | Justificación Técnica y Beneficio para ELIS |
+|---|---|---|
+| **Recorte Interactivo de Fotochecks** | `react-easy-crop` / `react-image-crop` | Súper ligeras, soportan gestos táctiles de zoom con dos dedos (*pinch-to-zoom*) en pantalla móvil y entregan coordenadas normalizadas `{ x, y, width, height }`. |
+| **Motor OCR sin Servidor** | `tesseract.js` (v5+) | Ejecuta Tesseract 5 directamente en un **Web Worker** del navegador. Descarga el modelo de idioma español (`spa`) una sola vez en caché y no consume memoria de servidor. |
+| **Lectura y Limpieza EXIF + WebP** | `exifr` + `browser-image-compression` | `exifr` es la librería más veloz en JS para extraer `DateTimeOriginal` en milisegundos. `browser-image-compression` convierte la foto a `.webp` en memoria y descarta metadatos sensibles (GPS). |
+| **Cálculo de Hash SHA-256** | **Web Crypto API** (`crypto.subtle`) | Nativo de todos los navegadores modernos. Cero dependencias adicionales; calcula el hash de una foto de 5 MB en menos de 0.1s. |
+| **Generador de Fichas (Adiós OneNote)** | `react-to-print` / `@react-pdf/renderer` | Permite diseñar la Ficha de Inspección con Tailwind CSS y componentes React nativos, exportando a PDF oficial de alta resolución o formato imprimible en 1 clic. |
+| **Instalación como App Móvil (PWA)** | `vite-plugin-pwa` | Convierte la web en una aplicación instalable en Android con soporte offline de assets, ícono en la pantalla de inicio y acceso a cámara. |
+| **Cliente de Datos y Auth** | `@supabase/supabase-js` | Cliente universal con autenticación persistente, consultas tipadas y manejo directo de subidas a Storage. |
+
+---
+
+### 2.2 Servidores MCP para Antigravity (100% Gratuitos y Locales)
+Para este stack Cloud-Native, Antigravity opera con 2 servidores MCP complementarios:
+
+1. **Graphify MCP Server (`graphify`):**
+   * **Rol:** Mapea el proyecto en TypeScript y React. Garantiza que cuando el agente cree una vista o función, reutilice obligatoriamente `BaseSupabaseService<T>` y los componentes UI atómicos sin duplicar código.
+2. **Supabase MCP Server (`@supabase/mcp-server-supabase`):**
+   * **Rol:** Sustituye al MCP de SQLite local. Conecta Antigravity directamente a tu proyecto de Supabase en la nube. Permite al agente inspeccionar esquemas, validar políticas RLS y ejecutar funciones SQL / RPC directamente desde el editor.
+
+---
+
+### 2.3 Matriz Comparativa: Stack Antiguo vs. Stack Cloud-Native
 
 | Componente | Solución Tradicional (Obsoleta) | Nueva Solución ELIS 5.0 Cloud-Native | Justificación Técnica y Beneficio |
 |---|---|---|---|
 | **Base de Datos & Auth** | SQLite Local + Auth manual | **Supabase (PostgreSQL 15+ & GoTrue Auth & RLS)** | Accesible 24/7 desde el celular sin depender de que la PC esté prendida. Políticas RLS granulares y Triggers automáticos. |
 | **Ingesta de Evidencias** | FolderSync + OneDrive + FileWatcher local | **React PWA + Web Crypto API + Direct Storage Upload** | Captura directa desde la cámara del celular. SHA-256 instantáneo en cliente; verificación de duplicados previa a la subida. |
-| **Almacenamiento de Fotos** | Disco local Windows + OneDrive | **Supabase Storage / Cloudflare R2** | 1 GB gratis en Supabase (~3,000 fotos WebP) o 10 GB gratis en R2 sin cobro de ancho de banda. Acceso seguro por URLs firmadas. |
-| **Generación de Fichas** | OneNote vía Microsoft Graph API | **Módulo React + Generador PDF (@react-pdf/renderer)** | Elimina tokens caducados de Azure AD y plantillas HTML rígidas. Control estético total en Tailwind con membrete corporativo e historial de auditoría. |
-| **Motor OCR** | OpenCV + Tesseract en PC (pesado) | **Tesseract.js (Navegador) o FastAPI Asíncrono** | Tesseract.js ejecuta el OCR usando la CPU del cliente solo durante los 2 segundos de lectura, o delega a un backend ligero. |
-| **Automatización y Tareas** | n8n en contenedor Docker local | **Python Async BackgroundTasks / Database Webhooks** | Cero consumo de RAM de fondo. Tareas desacopladas, alertas y llamadas a webhooks administradas por eventos puros. |
-| **Frontend Móvil y Web** | SPA tradicional en localhost | **PWA (React 18+, TypeScript, Vite, TailwindCSS)** | Instalable en Android/iOS como aplicación nativa, soporte offline parcial y acceso directo a la cámara. |
-| **Gobernanza de Código** | Desarrollo disperso sin verificación | **Antigravity + Graphify + MCP** | Reglas de arquitectura inyectadas, verificación automática de servicios base y navegación viva del AST/código. |
+| **Almacenamiento de Fotos** | Disco local Windows + OneDrive | **Supabase Storage (`evidencias_inmutables`)** | 1 GB gratis en Supabase (~3,000 fotos WebP) o 10 GB gratis en R2 sin cobro de ancho de banda. Acceso seguro por URLs firmadas. |
+| **Generación de Fichas** | OneNote vía Microsoft Graph API | **Módulo React + Generador PDF (`react-to-print`)** | Elimina tokens caducados de Azure AD y plantillas HTML rígidas. Control estético total en Tailwind con membrete corporativo e historial de auditoría. |
+| **Motor OCR** | OpenCV + Tesseract en PC (pesado) | **Tesseract.js (Web Worker en Navegador)** | Ejecuta el OCR en un hilo secundario sin congelar la app, consumiendo CPU del dispositivo cliente únicamente durante los 2 segundos de extracción. |
+| **Automatización y Tareas** | n8n en contenedor Docker local | **PostgreSQL Triggers & Funciones RPC** | Cero consumo de RAM de fondo. Trazabilidad garantizada por triggers a nivel de base de datos. |
+| **Frontend Móvil y Web** | SPA tradicional en localhost | **PWA (`vite-plugin-pwa` + React 18 + TS + Tailwind)** | Instalable en Android/iOS como aplicación nativa, soporte offline parcial y acceso directo a la cámara. |
+| **Gobernanza de Código** | Desarrollo disperso sin verificación | **Antigravity + Graphify + Supabase MCP** | Reglas de arquitectura inyectadas, verificación automática de servicios base y navegación viva del AST/código. |
 
 ---
 
