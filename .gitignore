@@ -1,0 +1,61 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python / uv / venv
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+env/
+
+# Node / Frontend
+node_modules/
+.npm
+.vite
+dist/
+dist-ssr/
+*.local
+
+# SQLite & Local DB / Data
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+data/
+uploads/
+storage/
+
+# Graphify outputs (rebuilt on demand)
+graphify-out/
+
+# IDE / System
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
