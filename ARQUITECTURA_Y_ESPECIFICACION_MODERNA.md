@@ -31,7 +31,7 @@ flowchart TD
     subgraph Cliente["1. Captura y Cliente Móvil (React PWA / Android & PC)"]
         CAM[📱 Cámara / Galería Móvil] --> UPLOAD[fileProcessor.ts: SHA-256 Web Crypto + EXIF Sanitizado]
         UPLOAD --> PREVIEW[Generación WebP & Miniatura Ligera]
-        UPLOAD -->|Subida Directa HTTPS| STORAGE[(🪣 Supabase Storage / R2 - Bucket :ro)]
+        UPLOAD -->|Subida Directa HTTPS| STORAGE[(🪣 Supabase Storage: evidencias_inmutables :ro)]
         
         UI[🎨 Frontend SPA / PWA React + TS + Tailwind] --> OCR_CLIENT[👁️ Tesseract.js OCR en Navegador]
         UI --> PDF_GEN[📄 Visor y Exportador PDF Nativo React]
@@ -348,46 +348,66 @@ Para despliegue gratuito en plataformas como Render o Koyeb (o ejecución local 
 
 ```mermaid
 gantt
-    title Plan de Desarrollo ELIS 5.0 Cloud-Native
+    title Plan de Desarrollo ELIS 5.0 Cloud-Native (5 Fases)
     dateFormat  YYYY-MM-DD
-    section Fase 1: Infraestructura y Supabase
-    Configuración de Supabase & Storage RLS      :done, f1_1, 2026-10-14, 1d
-    Tablas, Triggers de Auditoría e Índices      :active, f1_2, 2026-10-15, 2d
-    section Fase 2: PWA y Captura Criptográfica
-    Setup PWA Vite + React + TS + Tailwind       :f2_1, 2026-10-17, 1d
-    Servicio Base y fileProcessor (SHA-256 Web)  :f2_2, 2026-10-18, 2d
-    Subida Directa a Bucket y Deduplicación      :f2_3, 2026-10-20, 2d
-    section Fase 3: OCR y Vinculación Humana
-    Componente CropCanvas táctil para móviles    :f3_1, 2026-10-22, 2d
-    Pipeline OCR (Tesseract.js / Backend)        :f3_2, 2026-10-24, 2d
-    Validación Humana y Confirmación 1:1         :f3_3, 2026-10-26, 1d
-    section Fase 4: Reportes PDF y Auditoría
-    Visor de Ficha de Inspección en React        :f4_1, 2026-10-27, 2d
-    Generador PDF con @react-pdf/renderer        :f4_2, 2026-10-29, 2d
-    Línea de Tiempo AuditTimeline en Tiempo Real :f4_3, 2026-10-31, 1d
+    section Fase 1: Supabase y Auditoría
+    Tablas PostgreSQL & Trigger fn_audit_trigger  :active, f1_1, 2026-10-14, 2d
+    Bucket evidencias_inmutables & RLS :f1_2, after f1_1, 1d
+    section Fase 2: PWA y BaseSupabaseService
+    Setup Vite+React+TS+Tailwind + vite-plugin-pwa :f2_1, 2026-10-17, 1d
+    BaseSupabaseService<T> + Auth Session :f2_2, after f2_1, 2d
+    section Fase 3: Ingesta, EXIF y Deduplicación
+    fileProcessor.ts (SHA-256 + EXIF + WebP) :f3_1, 2026-10-20, 2d
+    Subir Evidencia + Bandeja Pendientes :f3_2, after f3_1, 2d
+    section Fase 4: CropCanvas y OCR
+    Componente CropCanvas táctil :f4_1, 2026-10-24, 2d
+    Pipeline OCR Tesseract.js + Formulario Human-in-the-Loop :f4_2, after f4_1, 2d
+    section Fase 5: Actividades, Fichas PDF y Voz
+    CRUD Actividades y Vinculación 1:1 :f5_1, 2026-10-28, 2d
+    InspectionReportTemplate + Exportador PDF + Web Speech :f5_2, after f5_1, 3d
 ```
 
 ### Detalle de Fases de Ejecución:
 
-* **Fase 1: Base de Datos, Auth y Almacenamiento Inmutable**
-  * Configuración del proyecto Supabase (PostgreSQL 15+).
-  * Creación de tablas (`evidencias`, `identificaciones`, `actividades`, `vinculos`, `auditoria`).
-  * Despliegue de la función y trigger universal de auditoría (`fn_audit_trigger`).
-  * Creación del bucket en Supabase Storage con políticas RLS de sólo inserción y lectura (`:ro`).
+#### 🔹 Fase 1: El Núcleo en Supabase y Auditoría Automática
+* **Objetivo:** Tener la base de datos en la nube lista, segura y auditada sin escribir aún ni una línea de interfaz.
+* **Tareas Principales:**
+  1. Configuración del proyecto en Supabase (PostgreSQL 15+).
+  2. Ejecución del script DDL con las 5 tablas maestras (`evidencias`, `identificaciones`, `actividades`, `vinculos`, `auditoria`).
+  3. Despliegue de la función y trigger universal en PostgreSQL (`fn_audit_trigger`) que llena la tabla `auditoria` automáticamente con el `OLD` y `NEW` JSONB en cada inserción, edición o borrado.
+  4. Creación del bucket de almacenamiento `evidencias_inmutables` con políticas de seguridad RLS de solo lectura e inserción (`:ro`, prohibido borrar o sobreescribir).
+* **Hito de Control:** Insertar un registro de prueba desde la consola SQL de Supabase y verificar que `auditoria` registra instantáneamente el snapshot sin código intermedio.
 
-* **Fase 2: Núcleo PWA Frontend, Criptografía y Deduplicación**
-  * Inicialización de la aplicación React 18 + TypeScript + Vite + TailwindCSS con soporte PWA.
-  * Implementación de `fileProcessor.ts` con cálculo SHA-256 nativo mediante `crypto.subtle`.
-  * Implementación de `BaseSupabaseService.ts` y flujo de subida directa a Supabase Storage.
-  * Manejo reactivo de duplicados (alerta instantánea si el SHA-256 ya existe).
+#### 🔹 Fase 2: Esqueleto Frontend (PWA) y Clase Base Reutilizable
+* **Objetivo:** Conectar la aplicación React con Supabase y permitir iniciar sesión desde la PC o el teléfono celular como una PWA nativa.
+* **Tareas Principales:**
+  1. Inicializar el proyecto con Vite + React 18+ + TypeScript + Tailwind CSS y configurar `vite-plugin-pwa` (con `manifest.json` y service worker) para instalación en pantalla de inicio de Android/iOS.
+  2. Configurar las reglas de arquitectura en Antigravity y verificar el grafo de conocimiento con Graphify.
+  3. Programar la clase abstracta genérica `BaseSupabaseService<T>` (`getAllPaginated`, `getById`, `create`, `updateStatus`) para reutilizar todas las conexiones a tablas.
+  4. Configurar el cliente y la persistencia de autenticación de Supabase (`supabaseClient.ts`).
+* **Hito de Control:** Instalar la PWA en el celular, iniciar sesión contra Supabase Auth y consultar un registro mediante `BaseSupabaseService<T>`.
 
-* **Fase 3: Recorte Táctil, Pipeline OCR y Gobernanza Human-in-the-Loop**
-  * Construcción de `CropCanvas.tsx` optimizado para pantallas táctiles de teléfonos Android.
-  * Integración de `tesseract.js` en cliente para extracción preliminar de texto en credenciales.
-  * Formulario de validación humana obligatoria antes de guardar la identificación en base de datos.
-  * Vinculación atómica de evidencias a actividades de inspección.
+#### 🔹 Fase 3: Ingesta desde Celular/PC, Sanitización EXIF y Deduplicación Criptográfica
+* **Objetivo:** Tomar o seleccionar una fotografía desde el celular, verificar al instante que no esté repetida en la nube, anonimizar los datos sensibles (GPS) y almacenarla de forma inmutable.
+* **Tareas Principales:**
+  1. Construir el módulo criptográfico `fileProcessor.ts` (cálculo de SHA-256 usando `crypto.subtle.digest` en el navegador, extracción de `DateTimeOriginal` y compresión ligera a miniatura `.webp`).
+  2. Implementar la pantalla "Subir Evidencia" (con acceso directo a la cámara del móvil o selector de archivos en PC).
+  3. Diseñar la "Bandeja de Pendientes" reutilizando el componente `<EvidenceCard.tsx/>` y badges de estado.
+* **Hito de Control de Negocio:** Subir una fotografía dos veces desde el teléfono; la primera entra con éxito al bucket y la segunda alerta al usuario de forma reactiva en milisegundos que el hash SHA-256 ya existe en base de datos, abortando la subida y ahorrando ancho de banda.
 
-* **Fase 4: Motor de Reportes PDF y Trazabilidad Visual**
-  * Diseño del visor de reportes corporativos en React con membrete, tabla de evidencias y QR de verificación.
-  * Exportación con un clic a PDF vectorial mediante `@react-pdf/renderer`.
-  * Componente `AuditTimeline.tsx` que muestra cronológicamente las mutaciones y actores registrados en `public.auditoria`.
+#### 🔹 Fase 4: Recorte Interactivo (CropCanvas) y OCR de Fotochecks
+* **Objetivo:** Recortar el fotocheck o credencial con el dedo o mouse y extraer Apellidos, Nombres y Cargo con validación humana obligatoria (*Human-in-the-Loop*).
+* **Tareas Principales:**
+  1. Crear el componente interactivo táctil `CropCanvas.tsx` con controles de zoom, rotación y recuadro delimitador (*bounding box*).
+  2. Integrar el motor OCR utilizando `tesseract.js` con preprocesamiento en un `<canvas>` oculto de HTML5 (conversión a escala de grises, contraste adaptativo) o delegación a endpoint ligero FastAPI con OpenCV.
+  3. Crear el formulario de confirmación humana que valida, edita discrepancias y guarda la relación 1:1 en la tabla `identificaciones` marcando el estado de la evidencia.
+* **Hito de Control:** Extraer el texto de un fotocheck de campo, verificar visualmente el resultado y confirmar los datos registrados por el usuario.
+
+#### 🔹 Fase 5: Actividades, Vinculación y Generador Propio de Fichas (Adiós OneNote)
+* **Objetivo:** Agrupar evidencias en una inspección o actividad técnica y exportar el informe oficial corporativo en PDF/impresión.
+* **Tareas Principales:**
+  1. Crear el módulo CRUD de Actividades (usando la clase base `BaseSupabaseService<Actividad>`) y la interfaz de vinculación atómica 1:1 de evidencias a actividades.
+  2. Diseñar el componente `<InspectionReportTemplate/>` en React con Tailwind CSS (reemplazo total de OneNote) con membrete oficial, cabecera de la actividad, tabla de evidencias vinculadas, fotochecks confirmados y sello con el hash SHA-256 de integridad de cada archivo.
+  3. Incorporar el exportador nativo de PDF/impresión (`@react-pdf/renderer` o `react-to-print`).
+  4. Integrar el módulo de comandos y dictado por voz mediante Web Speech API (`SpeechRecognition` en `es-PE`).
+* **Hito de Control:** Generar una ficha de inspección completa con evidencias fotográficas y exportar el reporte PDF oficial con diseño corporativo impecable en 1 solo clic.
