@@ -19,7 +19,7 @@ Esto genera:
 * **Cargas operativas manuales y lentas:** Compilación manual de minutas, reportes rígidos y dependientes de ecosistemas propietarios (como OneNote/Azure AD) que caducan y no permiten control visual.
 * **Sobrecarga de hardware local:** Obligar a una laptop a mantenerse encendida procesando Docker, n8n o esperando que archivos sincronicen por carpetas locales consume RAM y batería de forma ineficiente.
 
-**ELIS (Entorno Local Inteligente y Seguro) 5.0 Cloud-Native** evoluciona hacia una arquitectura **PWA Local-First / Cloud-Native**:
+**ELIS (Entorno Local Inteligente y Seguro) 5.0 Cloud-Native** elimina por completo la dependencia de tener una laptop encendida con Docker, SQLite, n8n, OneDrive y OneNote. Todo se transforma en una arquitectura **Serverless / Cloud-Native** centrada en una **PWA (Progressive Web App)** en React + TypeScript y respaldada por **Supabase (PostgreSQL + Storage + Auth)**:
 * **Subida directa desde el navegador móvil** hacia Buckets S3-compatibles (Supabase Storage o Cloudflare R2).
 * **Cálculo criptográfico en el cliente** (Web Crypto API SHA-256 en milisegundos en el celular).
 * **Base de datos Postgres gestionada 24/7 (Supabase)** con políticas RLS inmutables y triggers automáticos de auditoría.
@@ -28,26 +28,32 @@ Esto genera:
 
 ```mermaid
 flowchart TD
-    subgraph Cliente["1. Captura y Cliente Móvil (React PWA / Android & PC)"]
-        CAM[📱 Cámara / Galería Móvil] --> UPLOAD[fileProcessor.ts: SHA-256 Web Crypto + EXIF Sanitizado]
-        UPLOAD --> PREVIEW[Generación WebP & Miniatura Ligera]
-        UPLOAD -->|Subida Directa HTTPS| STORAGE[(🪣 Supabase Storage: evidencias_inmutables :ro)]
+    subgraph Cliente["1. Cliente Universal (Celular Android / Laptop)"]
+        UI[🎨 PWA React 18 + Vite + TS + Tailwind]
+        CRYPTO[🔐 Motor Local: Web Crypto SHA-256 + Compresor WebP + Limpiador EXIF]
+        OCR_ENGINE[👁️ Motor OCR En-Navegador: Canvas Pre-proc + Tesseract.js / WebWorker]
+        VOICE[🎙️ Módulo de Voz: Web Speech API es-PE]
+        PDF[📄 Exportador Nativo: Plantilla React a PDF / HTML]
         
-        UI[🎨 Frontend SPA / PWA React + TS + Tailwind] --> OCR_CLIENT[👁️ Tesseract.js OCR en Navegador]
-        UI --> PDF_GEN[📄 Visor y Exportador PDF Nativo React]
+        UI <--> CRYPTO
+        UI <--> OCR_ENGINE
+        UI <--> VOICE
+        UI <--> PDF
     end
 
-    subgraph BackendCloud["2. Núcleo de Datos y Lógica (Supabase + FastAPI Opcional)"]
-        UI <-->|HTTPS REST / JWT + RLS| SUPABASE[(🐘 PostgreSQL Supabase)]
-        SUPABASE -->|Trigger Automático Inmutable| AUDIT_LOG[(📋 Tabla Auditoria: OLD/NEW JSON)]
+    subgraph Nube["2. Backend Serverless (Supabase Free Tier - 24/7)"]
+        AUTH[🛡️ Supabase Auth + Políticas RLS]
+        STORAGE[(📦 Supabase Storage / Cloudflare R2\nBucket Inmutable: Solo INSERT y SELECT)]
+        DB[(🐘 PostgreSQL\nTablas: evidencias, identificaciones,\nactividades, vinculos, auditoria)]
+        TRIGGER[⚡ Database Triggers PL/pgSQL\nAuditoría Inmutable Automática]
         
-        UI <-->|Tareas Pesadas / Inferencia| FASTAPI[🚀 Microservicio FastAPI Asíncrono - Free Tier]
+        DB -->|Cualquier INSERT/UPDATE| TRIGGER
+        TRIGGER -->|Guarda OLD y NEW JSON| DB
     end
 
-    subgraph Salidas["3. Entregables y Seguridad"]
-        PDF_GEN --> REPORT[📑 Fichas de Inspección PDF con Membrete y QR]
-        AUDIT_LOG --> TIMELINE[🕒 Componente AuditTimeline en Tiempo Real]
-    end
+    UI <-->|HTTPS / JWT Seguro| AUTH
+    AUTH --> STORAGE
+    AUTH --> DB
 ```
 
 ---
@@ -209,12 +215,128 @@ AFTER INSERT OR UPDATE OR DELETE ON public.vinculos
 FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger();
 ```
 
+## 4. Arquitectura de Software, Capas y Flujos Operativos
+
+### 4.1 Arquitectura por Capas Limpias (Para Antigravity y Graphify)
+Para que **Graphify** mapee un proyecto limpio y estructurado y puedas reutilizar servicios y componentes sin duplicar código, la aplicación se divide en 4 capas estrictas:
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│ 1. CAPA DE VISTAS Y COMPONENTES UI (React + TailwindCSS)               │
+│  - Páginas: BandejaEvidencias, GestorActividades, VisorAuditoria       │
+│  - Componentes Reutilizables: <EvidenceCard/>, <CropCanvas/>,          │
+│    <StatusBadge/>, <InspectionReportPDF/> (Reemplaza a OneNote)        │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Llama a Hooks personalizados
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ 2. CAPA DE LÓGICA DE CLIENTE Y PROCESAMIENTO (Hooks y Web Workers)     │
+│  - FileProcessor: Extrae DateTimeOriginal, borra GPS, crea WebP,       │
+│    calcula Hash SHA-256 antes de gastar internet subiendo la foto.     │
+│  - OcrWorker: Recorta en HTML5 Canvas, aplica filtro B/N + Contraste   │
+│    y ejecuta OCR en un hilo secundario (sin congelar la pantalla).     │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Usa Servicios Tipados
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ 3. CAPA DE ACCESO A DATOS REUTILIZABLE (TypeScript POO)                │
+│  - BaseSupabaseService<T>: Clase padre genérica con métodos listos     │
+│    (.getAll(), .getById(), .create(), .update()) para todas las tablas.│
+│  - Servicios hijos: EvidenceService, ActivityService, OcrService.      │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ HTTPS (SDK de Supabase)
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ 4. CAPA DE PERSISTENCIA Y SEGURIDAD EN LA NUBE (Supabase)              │
+│  - Row Level Security (RLS): Bloquea borrados (Simula el volumen :ro). │
+│  - Triggers SQL: Llenan la tabla `auditoria` sin intervención humana.  │
+│  - Transacciones RPC (Funciones SQL): Para vinculaciones atómicas.     │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
-## 4. Arquitectura de Software y Reutilización (Clean PWA & Backend)
+### 4.2 Flujos Operativos y Diagramas de Secuencia Cloud-Native
 
-### 4.1 Frontend PWA (React + TypeScript)
-Estructura modular orientada a reutilización con **Antigravity** y consulta mediante **Graphify**:
+#### Flujo 1: Ingesta desde la Calle (Celular) y Deduplicación Instantánea
+Ya no necesitas esperar a que FolderSync suba a OneDrive y baje a tu PC. Todo ocurre al instante en tu mano:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operario as 👷 Usuario (En campo con Celular)
+    participant PWA as 📱 App Web ELIS (React)
+    participant Proc as ⚙️ FileProcessor (Navegador)
+    participant DB as 🐘 Supabase PostgreSQL
+    participant Bucket as 📦 Supabase Storage (Inmutable)
+
+    Operario->>PWA: Toma foto o selecciona de galería
+    PWA->>Proc: Procesa archivo en memoria RAM del celular
+    Proc->>Proc: 1. Calcula Hash SHA-256 (Web Crypto API)
+    Proc->>DB: ¿Existe `hash_sha256` en tabla `evidencias`?
+    alt El Hash YA existe (Foto Duplicada)
+        DB-->>PWA: Sí existe (Devuelve registro previo)
+        PWA->>DB: Registra intento en `auditoria` (DUPLICADO_IGNORADO)
+        PWA-->>Operario: ⚠️ Alerta inmediata: "Esta foto ya fue registrada" (Ahorra datos móviles)
+    else Es una foto NUEVA y única
+        Proc->>Proc: 2. Extrae `DateTimeOriginal` y elimina GPS (Privacidad)
+        Proc->>Proc: 3. Genera miniatura ligera (.webp)
+        PWA->>Bucket: Sube archivo original y miniatura (Política RLS: Prohibido borrar/editar)
+        Bucket-->>PWA: Confirmación de subida exitosa
+        PWA->>DB: INSERT en `evidencias` con estado 'pendiente'
+        Note over DB: ⚡ Trigger SQL se dispara solo y crea fila en `auditoria` ('EVIDENCIA_REGISTRADA')
+        DB-->>Operario: ✅ Foto registrada y lista en bandeja
+    end
+```
+
+#### Flujo 2: OCR Interactivo de Fotochecks (En-Navegador con Web Worker)
+En lugar de levantar un contenedor Docker con Python y OpenCV solo para pasar una imagen a escala de grises y leer texto, usamos la potencia del propio navegador con HTML5 Canvas + Web Workers:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Revisor as 👤 Revisor (En Celular o PC)
+    participant UI as 🖥️ Componente <CropCanvas/>
+    participant Worker as 🧵 Web Worker (Canvas + OCR)
+    participant DB as 🐘 Supabase PostgreSQL
+
+    Revisor->>UI: Abre foto "Pendiente" y dibuja recuadro sobre el fotocheck
+    UI->>Worker: Envía recorte de imagen (coordenadas x, y, w, h)
+    Note over Worker: Se ejecuta en segundo plano (No congela la app)
+    Worker->>Worker: Recorta en Canvas oculto + Escala de grises + Alto Contraste
+    Worker->>Worker: Extrae texto (Tesseract.js spa) + Aplica Regex (Nombres, Apellidos, Cargo)
+    Worker-->>UI: Devuelve datos sugeridos + % de confianza
+    Revisor->>UI: Verifica/corrige texto (Regla Human-in-the-Loop) y pulsa "Confirmar"
+    UI->>DB: INSERT en tabla `identificaciones`
+    Note over DB: ⚡ Trigger SQL registra automáticamente en `auditoria` ('FOTOCHECK_CONFIRMADO')
+    DB-->>Revisor: ✅ Identificación guardada
+```
+
+#### Flujo 3: Vinculación Atómica y Exportación de Ficha (Transacción RPC y Reporte PDF)
+Para asegurar que la vinculación de una foto a una actividad sea atómica (todo o nada) y reemplazar por completo a OneNote con control visual nativo:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Revisor as 👤 Revisor
+    participant UI as 🖥️ Panel ELIS (React)
+    participant RPC as ⚡ Función SQL (RPC en Supabase)
+    participant PDF as 📄 Motor de Reportes React
+
+    Revisor->>UI: Selecciona Evidencia y la asocia a una Actividad (ej. ACT-2026-001)
+    UI->>RPC: Llama a `rpc('vincular_evidencia_atomica', {evidencia_id, actividad_id})`
+    Note over RPC: Inicia Transacción ACID en PostgreSQL
+    RPC->>RPC: 1. UPDATE `evidencias` SET estado = 'vinculada'
+    RPC->>RPC: 2. INSERT relación en tabla `vinculos`
+    RPC->>RPC: 3. Trigger automático inserta en `auditoria`
+    RPC-->>UI: Confirmación 200 OK
+    
+    Revisor->>UI: Entra a la Actividad y pulsa "Generar Ficha de Inspección"
+    UI->>PDF: Renderiza componente `<InspectionReportTemplate/>` con fotos, hashes y OCR
+    PDF-->>Revisor: Descarga Ficha en PDF oficial / Vista de impresión inmutable
+    UI->>RPC: Actualiza estado de actividad a 'exportada'
+```
+
+---
+
+### 4.3 Estructura de Directorios para Desarrollo (PWA Frontend)
 
 ```text
 frontend/
