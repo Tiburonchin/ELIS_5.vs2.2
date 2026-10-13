@@ -1,32 +1,28 @@
 ---
-description: "Patrones de arquitectura de Backend: FastAPI, SQLAlchemy Async, GenericRepository y RFC 7807"
-globs: backend/**/*
+description: "Patrones de Acceso a Datos y Reutilización: TypeScript POO, BaseSupabaseService y RPC atómicas"
+globs: src/services/**/*,src/hooks/**/*
 alwaysApply: false
 ---
 
-# ELIS 5.0 — Patrones de Backend (FastAPI + SQLAlchemy Async)
+# ELIS 5.0 — Patrones de Servicios y Acceso a Datos (TypeScript + Supabase)
 
-## 1. Capas y Responsabilidades
-* **Rutas limpias (Thin Handlers):** Ninguna ruta ni endpoint de FastAPI puede contener lógica de negocio. Los endpoints solo realizan inyección de dependencias (`Depends`), validación de esquemas y delegan a la capa `services/`.
-* **Inyección de Dependencias:** Utiliza siempre el sistema de `Depends(...)` de FastAPI para bases de datos, repositorios, servicios y autenticación por API Key (`X-ELIS-Key`).
+## 1. Reutilización mediante BaseSupabaseService<T>
+* **Patrón de Herencia Obligatorio:** Todos los servicios de datos (`EvidenceService`, `ActivityService`, etc.) DEBEN heredar de la clase base genérica `BaseSupabaseService<T>`.
+* **Prohibido Duplicar Lógica CRUD:** Las operaciones genéricas (`getAllPaginated`, `getById`, `create`, `updateStatus`) ya están resueltas en `BaseSupabaseService<T>`. Los servicios derivados solo implementan lógica de negocio específica y consultas personalizadas.
+* Tipado estricto en cada entidad utilizando los tipos generados de Supabase (`Database['public']['Tables']`).
 
-## 2. Patrón de Persistencia (GenericRepository Async)
-* Implementa el patrón `GenericRepository[T, ID]` sobre SQLAlchemy 2.0 Async (`AsyncSession`).
-* Operaciones asíncronas puras con `async/await` (`select`, `execute`, `scalars`).
-* Ninguna consulta SQL cruda en endpoints ni en servicios de alto nivel.
-
-## 3. Manejo de Respuestas y Errores
-* **Envoltorio Estándar:** Todos los endpoints deben devolver la clase envolvente `StandardResponse[T]` para respuestas exitosas:
-  ```json
-  {
-    "success": true,
-    "data": { ... },
-    "metadata": { ... }
-  }
+## 2. Transacciones Atómicas mediante RPC
+* Cuando una operación afecte múltiples tablas de forma atómica (por ejemplo, vincular una evidencia a una actividad y cambiar simultáneamente su estado a `'vinculada'`), DEBE invocarse a una función SQL de PostgreSQL mediante:
+  ```typescript
+  const { data, error } = await supabase.rpc('vincular_evidencia_atomica', {
+    p_evidencia_id: evidenciaId,
+    p_actividad_id: actividadId
+  });
   ```
-* **Manejo de Errores RFC 7807 (ProblemDetails):** Todos los errores de negocio y validación deben retornar el estándar `application/problem+json` con campos: `type`, `title`, `status`, `detail`, `instance`.
+* Prohibido realizar múltiples mutaciones secuenciales manuales desde el cliente que puedan dejar estados inconsistentes ante pérdidas de conexión en campo.
 
-## 4. Tipado y Validación con Pydantic v2
-* Esquemas separados por responsabilidad: `*Create`, `*Update`, `*Response`, `*InDB`.
-* Usar `model_config = ConfigDict(from_attributes=True)`.
-* Evitar diccionarios genéricos (`dict`) en favor de modelos fuertemente tipados.
+## 3. Microservicio Backend FastAPI (Opcional / Tareas Pesadas)
+* Si se implementa un microservicio backend en Python para tareas que no corran en el cliente:
+  * Rutas limpias sin lógica de negocio (handlers delegados a `services/`).
+  * Inyección de dependencias con `Depends(...)`.
+  * Respuestas estandarizadas `StandardResponse[T]` para éxito y `ProblemDetails` (RFC 7807) para errores.
