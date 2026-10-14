@@ -7,6 +7,32 @@ import {
 } from '../services/ActivityService';
 import { useSpeech } from '../hooks/useSpeech';
 import { Modal } from '../components/ui/Modal';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Plus,
+  RefreshCw,
+  MapPin,
+  Calendar,
+  User,
+  ArrowRight,
+  Mic,
+  MicOff,
+  Layers,
+  LayoutGrid,
+  TableProperties,
+  Edit2,
+} from 'lucide-react';
 
 export interface ActivitiesManagerProps {
   onSelectActivity?: (activity: ActividadRow) => void;
@@ -16,6 +42,7 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
   const [activities, setActivities] = useState<ActividadRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
 
   // Estados del modal de Crear / Editar
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -61,7 +88,6 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     setError(null);
     try {
       const result = await activityService.getAll();
-      // Ordenar por fecha_operacion descendente
       const sorted = [...result.data].sort((a, b) => {
         return new Date(b.fecha_operacion).getTime() - new Date(a.fecha_operacion).getTime();
       });
@@ -135,7 +161,6 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
 
     try {
       if (editingActivity) {
-        // Actualizar
         const changes: ActividadUpdate = {
           tipo_actividad: formData.tipo_actividad,
           ubicacion: formData.ubicacion,
@@ -149,7 +174,6 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
           prev.map((item) => (item.id === updated.id ? updated : item))
         );
       } else {
-        // Crear
         const newAct: ActividadInsert = {
           codigo_referencia: formData.codigo_referencia.trim(),
           tipo_actividad: formData.tipo_actividad,
@@ -165,13 +189,12 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
       setIsModalOpen(false);
     } catch (err: unknown) {
       console.error('[ActivitiesManager] Error guardando actividad:', err);
-      setFormError(err instanceof Error ? err.message : 'Error al guardar la actividad.');
+      setFormError(err instanceof Error ? err.message : 'Error inesperado al guardar actividad.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Dictado por voz: alternar encendido / apagado
   const toggleVoiceDictation = () => {
     if (isListening) {
       stopListening();
@@ -180,71 +203,199 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     }
   };
 
+  const getStatusBadge = (estado: string) => {
+    switch (estado) {
+      case 'aprobado':
+      case 'emitido':
+        return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">Emitido</Badge>;
+      case 'en_revision':
+        return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30">En Revisión</Badge>;
+      default:
+        return <Badge variant="outline" className="text-muted-foreground">Borrador</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Cabecera y botón de nueva actividad */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <span>Gestor de Actividades e Inspecciones</span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-300 dark:border-sky-800">
-              {activities.length} registradas
-            </span>
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Administra órdenes operativas, asocia evidencias fotográficas en campo y genera fichas técnicas inmutables.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/20 active:scale-[0.98] transition-all cursor-pointer shrink-0"
-        >
-          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Nueva Actividad</span>
-        </button>
-      </div>
-
-      {/* Lista de Actividades */}
-      {loading ? (
-        <div className="p-12 text-center text-slate-400">
-          <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm font-medium">Cargando actividades desde Supabase...</p>
-        </div>
-      ) : error ? (
-        <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-sm flex items-center justify-between">
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={fetchActivities}
-            className="text-xs underline font-semibold hover:text-rose-800"
-          >
-            Reintentar
-          </button>
-        </div>
-      ) : activities.length === 0 ? (
-        <div className="p-12 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white/50 dark:bg-slate-900/50">
-          <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-400">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+      {/* Cabecera Corporativa con Card */}
+      <Card className="border-border shadow-xs">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg font-bold tracking-tight text-foreground">
+                Gestor de Actividades e Inspecciones
+              </CardTitle>
+              <Badge variant="secondary" className="font-mono text-xs">
+                {activities.length} registradas
+              </Badge>
+            </div>
+            <CardDescription className="text-xs sm:text-sm text-muted-foreground">
+              Administra órdenes de trabajo operativas, asocia evidencias fotográficas forenses y genera fichas de inspección inmutables.
+            </CardDescription>
           </div>
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No hay actividades creadas</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4">
-            Crea la primera actividad operativa para comenzar a vincular evidencias.
-          </p>
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="px-4 py-2 bg-sky-600 text-white rounded-lg text-xs font-semibold hover:bg-sky-500 cursor-pointer"
+
+          <div className="flex items-center gap-2">
+            {/* Toggle de vistas: Tabla / Tarjetas */}
+            <div className="inline-flex rounded-lg border bg-muted/40 p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Vista en Tabla"
+              >
+                <TableProperties className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                  viewMode === 'cards'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Vista en Tarjetas"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleOpenCreate}
+              className="gap-1.5 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nueva Actividad</span>
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Estado: Loading */}
+      {loading ? (
+        <Card className="p-12 text-center border-border">
+          <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">Cargando actividades desde Supabase...</p>
+        </Card>
+      ) : error ? (
+        <Card className="p-4 border-destructive/40 bg-destructive/10 text-destructive text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchActivities}
+            className="cursor-pointer gap-1.5"
           >
+            <RefreshCw className="h-3 w-3" />
+            Reintentar
+          </Button>
+        </Card>
+      ) : activities.length === 0 ? (
+        <Card className="p-12 text-center border-2 border-dashed border-border bg-muted/20">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3 text-muted-foreground">
+            <Layers className="h-6 w-6" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">No hay actividades creadas</h3>
+          <p className="text-xs text-muted-foreground mt-1 mb-4">
+            Crea la primera orden de inspección para comenzar a vincular evidencias.
+          </p>
+          <Button
+            onClick={handleOpenCreate}
+            size="sm"
+            className="gap-1.5 cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
             Crear Actividad Inicial
-          </button>
-        </div>
+          </Button>
+        </Card>
+      ) : viewMode === 'table' ? (
+        /* Vista en Tabla shadcn */
+        <Card className="border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="w-[140px] font-semibold">Código Ref.</TableHead>
+                <TableHead className="font-semibold">Tipo de Actividad</TableHead>
+                <TableHead className="font-semibold">Ubicación</TableHead>
+                <TableHead className="font-semibold">Fecha</TableHead>
+                <TableHead className="font-semibold">Responsable</TableHead>
+                <TableHead className="font-semibold">Estado</TableHead>
+                <TableHead className="text-right font-semibold">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activities.map((act) => {
+                const formattedDate = act.fecha_operacion
+                  ? new Date(act.fecha_operacion).toLocaleDateString('es-PE', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'Sin fecha';
+
+                return (
+                  <TableRow key={act.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell className="font-mono font-semibold text-xs text-primary">
+                      {act.codigo_referencia}
+                    </TableCell>
+                    <TableCell className="capitalize font-medium text-xs">
+                      {act.tipo_actividad.replace(/_/g, ' ')}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate max-w-[180px]">{act.ubicacion}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span>{formattedDate}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-foreground font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate max-w-[150px]">{act.responsable_nombre}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(act.estado_reporte)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(act)}
+                          className="h-8 px-2 text-xs cursor-pointer"
+                          title="Editar actividad"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onSelectActivity && onSelectActivity(act)}
+                          className="h-8 px-2.5 text-xs gap-1 cursor-pointer font-medium"
+                        >
+                          <span>Detalle</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
       ) : (
+        /* Vista en Tarjetas shadcn Card */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {activities.map((act) => {
             const formattedDate = act.fecha_operacion
@@ -256,77 +407,68 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
               : 'Sin fecha';
 
             return (
-              <div
+              <Card
                 key={act.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:border-sky-500/50 hover:shadow-md transition-all flex flex-col justify-between"
+                className="border-border hover:shadow-md hover:border-primary/50 transition-all flex flex-col justify-between"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-mono font-bold text-sky-700 dark:text-sky-400 px-2.5 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs font-mono font-bold text-primary px-2 py-0.5 rounded bg-muted">
                       {act.codigo_referencia}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                      {act.estado_reporte}
-                    </span>
+                    {getStatusBadge(act.estado_reporte)}
                   </div>
-
-                  <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 capitalize">
+                  <CardTitle className="text-sm font-semibold capitalize text-foreground">
                     {act.tipo_actividad.replace(/_/g, ' ')}
-                  </h3>
+                  </CardTitle>
+                </CardHeader>
 
-                  <div className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
-                    <p className="flex items-center gap-1.5">
-                      <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span className="truncate">{act.ubicacion}</span>
-                    </p>
+                <CardContent className="space-y-2 text-xs text-muted-foreground py-0">
+                  <p className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{act.ubicacion}</span>
+                  </p>
 
-                    <p className="flex items-center gap-1.5">
-                      <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span>{formattedDate}</span>
-                    </p>
+                  <p className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span>{formattedDate}</span>
+                  </p>
 
-                    <p className="flex items-center gap-1.5">
-                      <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      <span className="truncate">Resp: <b>{act.responsable_nombre}</b></span>
-                    </p>
-                  </div>
+                  <p className="flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">Resp: <b>{act.responsable_nombre}</b></span>
+                  </p>
 
                   {act.descripcion && (
-                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 italic bg-slate-50 dark:bg-slate-800/40 p-2 rounded-lg">
+                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2 italic bg-muted/40 p-2 rounded-md">
                       "{act.descripcion}"
                     </p>
                   )}
-                </div>
+                </CardContent>
 
-                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
-                  <button
+                <CardFooter className="pt-3 mt-3 border-t border-border flex items-center justify-between gap-2">
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleOpenEdit(act)}
-                    className="p-1.5 text-xs text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                    title="Editar actividad"
+                    className="h-8 text-xs cursor-pointer"
                   >
                     Editar
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => onSelectActivity && onSelectActivity(act)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900 border border-sky-200 dark:border-sky-800 transition-colors cursor-pointer"
+                    className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
                   >
                     <span>Ver Detalle y Evidencias</span>
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </CardFooter>
+              </Card>
             );
           })}
         </div>
@@ -341,34 +483,34 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
       >
         <form onSubmit={handleSave} className="space-y-4">
           {formError && (
-            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs">
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs">
               {formError}
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-foreground">
                 Código de Referencia
               </label>
-              <input
+              <Input
                 type="text"
                 value={formData.codigo_referencia}
                 onChange={(e) => setFormData({ ...formData, codigo_referencia: e.target.value })}
-                className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                className="font-mono text-xs"
                 placeholder="ACT-2026-0001"
                 required
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-foreground">
                 Tipo de Actividad
               </label>
               <select
                 value={formData.tipo_actividad}
                 onChange={(e) => setFormData({ ...formData, tipo_actividad: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                className="w-full h-9 px-3 py-1 text-xs rounded-md border border-input bg-background text-foreground shadow-xs focus:ring-1 focus:ring-ring focus:outline-none"
               >
                 <option value="inspeccion_rutinaria">Inspección Rutinaria</option>
                 <option value="supervision_seguridad">Supervisión de Seguridad</option>
@@ -378,42 +520,42 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-foreground">
                 Ubicación / Sector
               </label>
-              <input
+              <Input
                 type="text"
                 value={formData.ubicacion}
                 onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                className="text-xs"
                 placeholder="Planta Principal - Sector B"
                 required
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-foreground">
                 Fecha de Operación
               </label>
-              <input
+              <Input
                 type="date"
                 value={formData.fecha_operacion}
                 onChange={(e) => setFormData({ ...formData, fecha_operacion: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                className="text-xs"
                 required
               />
             </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <div className="sm:col-span-2 space-y-1">
+              <label className="block text-xs font-semibold text-foreground">
                 Responsable de Operación
               </label>
-              <input
+              <Input
                 type="text"
                 value={formData.responsable_nombre}
                 onChange={(e) => setFormData({ ...formData, responsable_nombre: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                className="text-xs"
                 placeholder="Ing. Carlos Mendoza"
                 required
               />
@@ -421,9 +563,9 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
           </div>
 
           {/* Campo Descripción con Botón de Dictado por Voz */}
-          <div>
+          <div className="space-y-1">
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <label className="block text-xs font-semibold text-foreground">
                 Descripción / Observaciones
               </label>
 
@@ -434,13 +576,15 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all ${
                   isListening
                     ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
-                    : 'bg-sky-50 hover:bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-300 dark:border-sky-800'
+                    : 'bg-muted hover:bg-muted/80 text-foreground border border-border'
                 }`}
                 title={isSpeechSupported ? 'Dictar por voz en español' : 'Voz no soportada'}
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
+                {isListening ? (
+                  <MicOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Mic className="h-3.5 w-3.5" />
+                )}
                 <span>{isListening ? 'Escuchando (es-PE)...' : 'Dictar por Voz'}</span>
               </button>
             </div>
@@ -449,32 +593,33 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
               rows={3}
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+              className="w-full px-3 py-2 text-xs rounded-md border border-input bg-background text-foreground shadow-xs focus:ring-1 focus:ring-ring focus:outline-none"
               placeholder="Dicta o escribe notas de campo sobre la inspección..."
             />
 
             {isListening && interimTranscript && (
-              <p className="text-[11px] text-sky-600 dark:text-sky-400 italic mt-1">
+              <p className="text-[11px] text-primary italic mt-1">
                 Dictando: {interimTranscript}
               </p>
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <button
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="cursor-pointer"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white cursor-pointer shadow-md disabled:opacity-50"
+              className="cursor-pointer"
             >
               {saving ? 'Guardando...' : editingActivity ? 'Actualizar' : 'Crear Actividad'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

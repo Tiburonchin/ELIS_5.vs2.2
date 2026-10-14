@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { EvidenciaRow } from '../../services/EvidenceService';
 import { supabase } from '../../lib/supabaseClient';
 import { StatusBadge } from '../ui/StatusBadge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Modal } from '../ui/Modal';
 import { CropCanvas } from '../ocr/CropCanvas';
 import { OcrResultEditor } from '../ocr/OcrResultEditor';
@@ -134,12 +136,12 @@ export const EvidenceCard: React.FC<EvidenceCardProps> = ({
 
   return (
     <>
-      <div
-        className={`group relative flex flex-col rounded-xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 ${className}`}
+      <Card
+        className={`group relative flex flex-col overflow-hidden py-0 border-border shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer ${className}`}
         onClick={() => onSelect?.(evidence)}
       >
         {/* Zona de imagen / miniatura con aspect ratio */}
-        <div className="relative aspect-4/3 w-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+        <div className="relative aspect-4/3 w-full bg-muted flex items-center justify-center overflow-hidden">
           {thumbnailUrl && !imgError ? (
             <img
               src={thumbnailUrl}
@@ -149,7 +151,7 @@ export const EvidenceCard: React.FC<EvidenceCardProps> = ({
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
-            <div className="flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+            <div className="flex flex-col items-center justify-center text-muted-foreground p-4 text-center">
               <svg
                 className="w-10 h-10 mb-1 opacity-60"
                 fill="none"
@@ -174,17 +176,17 @@ export const EvidenceCard: React.FC<EvidenceCardProps> = ({
         </div>
 
         {/* Contenido / Metadatos */}
-        <div className="p-3.5 flex flex-col flex-1 justify-between gap-3">
+        <CardContent className="p-3.5 flex flex-col flex-1 justify-between gap-3">
           <div className="space-y-1.5">
             <h4
-              className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate"
+              className="text-sm font-semibold text-foreground truncate"
               title={evidence.nombre_archivo}
             >
               {evidence.nombre_archivo}
             </h4>
 
             {/* Fecha y tamaño */}
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -195,14 +197,14 @@ export const EvidenceCard: React.FC<EvidenceCardProps> = ({
             </div>
 
             {/* Hash SHA-256 truncado con acción de copiar */}
-            <div className="flex items-center justify-between text-[11px] bg-slate-50 dark:bg-slate-800/60 rounded px-2 py-1 text-slate-600 dark:text-slate-300 font-mono">
+            <div className="flex items-center justify-between text-[11px] bg-muted/60 rounded px-2 py-1 text-foreground/80 font-mono">
               <span title={evidence.hash_sha256} className="truncate">
                 SHA: {shortHash}
               </span>
               <button
                 type="button"
                 onClick={handleCopyHash}
-                className="ml-2 text-sky-600 hover:text-sky-700 dark:text-sky-400 hover:underline shrink-0 flex items-center gap-1 cursor-pointer"
+                className="ml-2 text-primary hover:underline shrink-0 flex items-center gap-1 cursor-pointer"
                 title="Copiar SHA-256 completo"
               >
                 {copied ? (
@@ -217,19 +219,21 @@ export const EvidenceCard: React.FC<EvidenceCardProps> = ({
           </div>
 
           {/* Botón de acción para Fase 4: Habilitado con Modal de Recorte y OCR */}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={handleOpenOcrModal}
             title="Extraer fotocheck y procesar con OCR en navegador"
-            className="w-full mt-1 py-2 px-3 rounded-lg text-xs font-semibold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/60 border border-sky-200 dark:border-sky-800/60 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            className="w-full mt-1 text-xs font-semibold gap-1.5 cursor-pointer"
           >
-            <svg className="w-4 h-4 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
             </svg>
             Extraer Fotocheck (OCR)
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Modal interactivo de Recorte y OCR */}
       <Modal
