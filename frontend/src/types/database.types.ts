@@ -289,6 +289,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      guardar_actividad_hse_completa: {
+        Args: {
+          p_id?: string | null
+          p_datos_generales?: Json
+          p_datos_formato_json?: Json
+          p_estado_reporte?: string | null
+        }
+        Returns: Json
+      }
       vincular_evidencia_atomica:
         | {
             Args: {

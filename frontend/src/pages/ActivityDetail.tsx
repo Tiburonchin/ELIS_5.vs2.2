@@ -53,7 +53,10 @@ import {
   Camera,
   ShieldCheck,
   FileCheck,
+  CloudCheck,
+  Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export interface ActivityDetailProps {
   activity: ActividadRow;
@@ -519,28 +522,68 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
     });
   };
 
-  // Guardar Cambios en Supabase
+  // Guardar Cambios en Supabase (Formato HSE + Datos Generales de la Actividad)
   const handleGuardarCambios = async () => {
     setIsSaving(true);
     try {
       const datosJson = isAmonestacion ? f128Data : f120Data;
 
-      const updated = await activityService.update(currentActivity.id, {
-        datos_formato_json: datosJson as any,
-      });
+      // Sincronizar datos generales relevantes de la cabecera del formulario
+      const camposGenerales: Partial<Pick<ActividadRow, 'ubicacion' | 'responsable_nombre' | 'descripcion' | 'fecha_operacion'>> = {};
+
+      if (!isAmonestacion && f120Data.cabecera) {
+        if (f120Data.cabecera.lugar?.trim()) {
+          camposGenerales.ubicacion = f120Data.cabecera.lugar.trim();
+        }
+        if (f120Data.cabecera.supervisor_encargado?.trim()) {
+          camposGenerales.responsable_nombre = f120Data.cabecera.supervisor_encargado.trim();
+        }
+        if (f120Data.cabecera.fecha_inspeccion) {
+          camposGenerales.fecha_operacion = f120Data.cabecera.fecha_inspeccion;
+        }
+        if (f120Data.cabecera.actividad?.trim()) {
+          camposGenerales.descripcion = f120Data.cabecera.actividad.trim();
+        }
+      } else if (isAmonestacion && f128Data.amonestado) {
+        if (f128Data.amonestado.ubicacion?.trim()) {
+          camposGenerales.ubicacion = f128Data.amonestado.ubicacion.trim();
+        }
+        if (f128Data.relato_razon?.trim()) {
+          camposGenerales.descripcion = f128Data.relato_razon.trim();
+        } else if (f128Data.detalle_motivo?.trim()) {
+          camposGenerales.descripcion = f128Data.detalle_motivo.trim();
+        }
+      }
+
+      const updated = await activityService.saveHseFormatData(
+        currentActivity.id,
+        datosJson as any,
+        camposGenerales,
+        currentActivity.estado_reporte
+      );
 
       setCurrentActivity(updated);
       if (onActivityUpdated) onActivityUpdated(updated);
+
+      toast.success('Formato HSE guardado exitosamente', {
+        description: `La actividad ${updated.codigo_referencia} está sincronizada en Supabase Cloud.`,
+      });
 
       setNotification({
         message: '¡Datos del formato corporativo guardados exitosamente en la nube!',
         type: 'success',
       });
       setTimeout(() => setNotification(null), 4000);
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('[ActivityDetail] Error guardando formato:', err);
+      const detailError = err?.message || 'Error al guardar los datos en Supabase.';
+      
+      toast.error('Error al guardar en Supabase', {
+        description: detailError,
+      });
+
       setNotification({
-        message: 'Error al guardar los datos en Supabase. Verifica tu conexión.',
+        message: `Error al guardar en Supabase: ${detailError}`,
         type: 'error',
       });
     } finally {
@@ -614,6 +657,10 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
               <Badge variant={currentActivity.estado_reporte === 'exportada' ? 'secondary' : 'default'} className="text-[10px] uppercase">
                 {currentActivity.estado_reporte}
               </Badge>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                <CloudCheck className="w-3.5 h-3.5" />
+                <span>Nube Conectada</span>
+              </span>
             </div>
             <h1 className="text-lg font-bold text-foreground mt-1">
               {currentActivity.tipo_actividad.replace(/_/g, ' ')} &bull; {currentActivity.ubicacion}
@@ -646,8 +693,12 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
             disabled={isSaving}
             className="cursor-pointer gap-2 text-xs font-semibold h-9 shadow-xs"
           >
-            <Save className="w-4 h-4" />
-            <span>{isSaving ? 'Guardando en la nube...' : 'Guardar Formato'}</span>
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            <span>{isSaving ? 'Guardando en la nube...' : 'Guardar Formato HSE'}</span>
           </Button>
         </div>
       </div>

@@ -438,6 +438,110 @@ BEGIN
     RETURN TRUE; 
 END; 
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 10. FUNCIÓN RPC ATÓMICA PARA GUARDADO INTEGRAL DE ACTIVIDADES Y FORMATOS HSE
+CREATE OR REPLACE FUNCTION public.guardar_actividad_hse_completa(
+    p_id UUID DEFAULT NULL,
+    p_datos_generales JSONB DEFAULT '{}'::jsonb,
+    p_datos_formato_json JSONB DEFAULT '{}'::jsonb,
+    p_estado_reporte TEXT DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_id UUID;
+    v_user_id UUID;
+    v_actividad RECORD;
+    v_codigo TEXT;
+    v_tipo TEXT;
+    v_fecha DATE;
+    v_responsable_nombre TEXT;
+    v_ubicacion TEXT;
+    v_descripcion TEXT;
+    v_estado TEXT;
+    v_formato JSONB;
+BEGIN
+    v_user_id := auth.uid();
+    v_id := p_id;
+    v_formato := COALESCE(p_datos_formato_json, '{}'::jsonb);
+
+    v_codigo := NULLIF(TRIM(p_datos_generales->>'codigo_referencia'), '');
+    v_tipo := NULLIF(TRIM(p_datos_generales->>'tipo_actividad'), '');
+    v_fecha := (p_datos_generales->>'fecha_operacion')::DATE;
+    v_responsable_nombre := NULLIF(TRIM(p_datos_generales->>'responsable_nombre'), '');
+    v_ubicacion := NULLIF(TRIM(p_datos_generales->>'ubicacion'), '');
+    v_descripcion := p_datos_generales->>'descripcion';
+    v_estado := COALESCE(p_estado_reporte, p_datos_generales->>'estado_reporte', 'pendiente');
+
+    IF v_id IS NOT NULL THEN
+        UPDATE public.actividades
+        SET 
+            codigo_referencia = COALESCE(v_codigo, codigo_referencia),
+            tipo_actividad = COALESCE(v_tipo, tipo_actividad),
+            fecha_operacion = COALESCE(v_fecha, fecha_operacion),
+            responsable_id = COALESCE(responsable_id, v_user_id),
+            responsable_nombre = COALESCE(v_responsable_nombre, responsable_nombre),
+            ubicacion = COALESCE(v_ubicacion, ubicacion),
+            descripcion = CASE 
+                WHEN p_datos_generales ? 'descripcion' THEN v_descripcion 
+                ELSE descripcion 
+            END,
+            estado_reporte = COALESCE(v_estado, estado_reporte),
+            datos_formato_json = v_formato,
+            actualizado_en = now()
+        WHERE id = v_id
+        RETURNING * INTO v_actividad;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Actividad con ID % no encontrada para actualizar.', v_id;
+        END IF;
+    ELSE
+        IF v_codigo IS NULL THEN
+            RAISE EXCEPTION 'El código de referencia es obligatorio para crear una actividad.';
+        END IF;
+
+        INSERT INTO public.actividades (
+            codigo_referencia,
+            tipo_actividad,
+            fecha_operacion,
+            responsable_id,
+            responsable_nombre,
+            ubicacion,
+            descripcion,
+            estado_reporte,
+            datos_formato_json,
+            creado_en,
+            actualizado_en
+        )
+        VALUES (
+            v_codigo,
+            COALESCE(v_tipo, 'INSPECCION'),
+            COALESCE(v_fecha, CURRENT_DATE),
+            v_user_id,
+            COALESCE(v_responsable_nombre, 'Inspector HSE'),
+            COALESCE(v_ubicacion, 'Área de Operaciones'),
+            v_descripcion,
+            COALESCE(v_estado, 'pendiente'),
+            v_formato,
+            now(),
+            now()
+        )
+        ON CONFLICT (codigo_referencia) DO UPDATE
+        SET 
+            tipo_actividad = EXCLUDED.tipo_actividad,
+            fecha_operacion = EXCLUDED.fecha_operacion,
+            responsable_id = COALESCE(public.actividades.responsable_id, EXCLUDED.responsable_id),
+            responsable_nombre = EXCLUDED.responsable_nombre,
+            ubicacion = EXCLUDED.ubicacion,
+            descripcion = EXCLUDED.descripcion,
+            estado_reporte = EXCLUDED.estado_reporte,
+            datos_formato_json = EXCLUDED.datos_formato_json,
+            actualizado_en = now()
+        RETURNING * INTO v_actividad;
+    END IF;
+
+    RETURN to_jsonb(v_actividad);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 ```
 
 ---
@@ -458,7 +562,7 @@ Siguiendo las mejores prácticas de Supabase (`04-supabase-postgres-best-practic
 | **`public.perfiles`** | `TO authenticated` (Todos pueden ver inspectores) | `TO authenticated` (`id = (select auth.uid())`) | `TO authenticated` (`id = (select auth.uid())`) | ❌ **PROHIBIDO** | Los usuarios solo gestionan su propio perfil. No se permite eliminar perfiles desde cliente. |
 | **`public.evidencias`** | `TO authenticated` (Lectura compartida para auditoría) | `TO authenticated` (`subido_por = (select auth.uid())`) | `TO authenticated` (Solo cambio de estado `pendiente` -> `vinculada`) | ❌ **PROHIBIDO (:ro)** | **Regla Inmutable:** Prohibido borrar evidencias originales. Integridad de cadena de custodia. |
 | **`public.identificaciones`** | `TO authenticated` | `TO authenticated` (`confirmado_por = (select auth.uid())`) | `TO authenticated` (`confirmado_por = (select auth.uid())`) | ❌ **PROHIBIDO** | La transcripción validada por un humano no puede ser eliminada. Solo corregida por el revisor. |
-| **`public.actividades`** | `TO authenticated` | `TO authenticated` (`responsable_id = (select auth.uid())`) | `TO authenticated` (`responsable_id = (select auth.uid())`) | ❌ **PROHIBIDO** | Fichas e inspecciones no se borran; pasan a estado archivado o cancelado. |
+| **`public.actividades`** | `TO authenticated` | `TO authenticated` (`responsable_id IS NULL OR responsable_id = (select auth.uid())`) | `TO authenticated` (`responsable_id IS NULL OR responsable_id = (select auth.uid()) OR rol IN ('supervisor','administrador')`) | ❌ **PROHIBIDO** | Fichas e inspecciones no se borran; supervisores/administradores pueden auditar y actualizar cualquier actividad. |
 | **`public.vinculos`** | `TO authenticated` | `TO authenticated` (`vinculado_por = (select auth.uid())`) | `TO authenticated` (`vinculado_por = (select auth.uid())`) | `TO authenticated` (Permite desvincular solo si estado vuelve a `pendiente`) | Desvincular una foto restaura su disponibilidad para reasignación en campo. |
 | **`public.auditoria`** | `TO authenticated` (Solo lectura de trazabilidad) | ❌ **BLOQUEADO AL CLIENTE** (Solo vía Trigger `SECURITY DEFINER`) | ❌ **PROHIBIDO** | ❌ **PROHIBIDO** | **Inmutabilidad Absoluta:** La auditoría solo se escribe por triggers en PostgreSQL. Cero mutaciones manuales. |
 | **Storage (`evidencias`)** | `TO authenticated` | `TO authenticated` (`(select auth.uid()) IS NOT NULL`) | ❌ **PROHIBIDO (:ro)** | ❌ **PROHIBIDO (:ro)** | Los archivos de imagen originales y miniaturas jamás pueden sobrescribirse o eliminarse. |

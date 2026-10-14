@@ -228,6 +228,72 @@ export class ActivityService extends BaseSupabaseService<
       throw error;
     }
   }
+
+  /**
+   * Guarda de forma atómica y blindada los datos de un formato HSE y sus campos generales
+   * utilizando la función RPC `guardar_actividad_hse_completa`, con reintento automático
+   * ante micro-cortes de red y fallback a update() sanitizado.
+   */
+  async saveHseFormatData(
+    actividadId: string,
+    datosFormatoJson: DatosFormatoHse,
+    camposGenerales?: Partial<Pick<ActividadRow, 'ubicacion' | 'responsable_nombre' | 'descripcion' | 'fecha_operacion' | 'tipo_actividad' | 'codigo_referencia'>>,
+    estadoReporte?: 'pendiente' | 'exportada' | 'publicada',
+    maxRetries: number = 2
+  ): Promise<ActividadRow> {
+    let lastError: any = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Intentar invocar la RPC atómica ultrarrápida
+        const { data, error } = await supabase.rpc('guardar_actividad_hse_completa', {
+          p_id: actividadId,
+          p_datos_generales: (camposGenerales as Json) || ({} as Json),
+          p_datos_formato_json: (datosFormatoJson as unknown as Json) || ({} as Json),
+          p_estado_reporte: estadoReporte || null,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          return data as unknown as ActividadRow;
+        }
+
+        // Si la RPC devolvió null (inesperado), intentar fallback directo vía update sanitizado
+        return await this.update(actividadId, {
+          ...(camposGenerales || {}),
+          datos_formato_json: datosFormatoJson as unknown as Json,
+          ...(estadoReporte ? { estado_reporte: estadoReporte } : {}),
+        } as ActividadUpdate);
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[ActivityService] Intento ${attempt + 1}/${maxRetries + 1} de guardar formato HSE falló:`, {
+          message: err?.message,
+          code: err?.code,
+          details: err?.details,
+          hint: err?.hint,
+        });
+
+        // Si es un error de RLS o de validación de negocio, no reintentar
+        const isRls = err?.code === '42501' || err?.message?.toLowerCase().includes('row-level security');
+        if (isRls || attempt === maxRetries) {
+          break;
+        }
+
+        // Espera exponencial breve (300ms, 600ms) ante micro-cortes
+        await new Promise((resolve) => setTimeout(resolve, 300 * Math.pow(2, attempt)));
+      }
+    }
+
+    const detailMsg = lastError?.code
+      ? `[Postgres ${lastError.code}]: ${lastError.message || 'Error de comunicación'}`
+      : lastError?.message || 'Error de comunicación con Supabase al guardar formato HSE';
+
+    console.error('[ActivityService] Error definitivo en saveHseFormatData:', detailMsg, lastError);
+    this.handleDatabaseError(lastError, `saveHseFormatData (${actividadId})`);
+  }
 }
 
 export const activityService = new ActivityService();

@@ -161,13 +161,33 @@ export class BaseSupabaseService<
   }
 
   /**
+   * Sanitiza el payload eliminando claves no persistibles o campos computados/relaciones
+   * (tales como vinculos, evidencias, creado_en, id en updates, etc.)
+   */
+  protected sanitizePayload<T extends Record<string, unknown>>(payload: T, isUpdate: boolean = false): Record<string, unknown> {
+    const forbiddenKeys = new Set(['vinculos', 'evidencias', 'identificacion', 'identificaciones', 'perfiles', 'autor', 'responsable']);
+    if (isUpdate) {
+      forbiddenKeys.add('id');
+      forbiddenKeys.add('creado_en');
+    }
+
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (!forbiddenKeys.has(key) && value !== undefined) {
+        clean[key] = value;
+      }
+    }
+    return clean;
+  }
+
+  /**
    * Crea un nuevo registro. Inyecta automáticamente el auth.uid() si la entidad posee
    * campos de autoría típicos (subido_por, responsable_id, confirmado_por, vinculado_por) y no fueron provistos.
    */
   async create(item: TInsert): Promise<TRow> {
     try {
       const currentUserId = await this.getCurrentUserId();
-      let recordWithAuth = { ...(item as Record<string, unknown>) };
+      let recordWithAuth = this.sanitizePayload(item as Record<string, unknown>, false);
 
       if (currentUserId) {
         // Inyección condicional si el campo existe o es null/undefined en el payload
@@ -207,9 +227,11 @@ export class BaseSupabaseService<
    */
   async update(id: string | number, changes: TUpdate, idColumn: string = 'id'): Promise<TRow> {
     try {
+      const sanitized = this.sanitizePayload(changes as Record<string, unknown>, true);
+
       const { data, error } = await (supabase
         .from(this.tableName) as any)
-        .update(changes)
+        .update(sanitized)
         .eq(idColumn, id)
         .select()
         .single();

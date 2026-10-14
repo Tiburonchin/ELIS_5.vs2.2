@@ -31,7 +31,9 @@ import {
   LayoutGrid,
   TableProperties,
   Edit2,
+  CloudCheck,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export interface ActivitiesManagerProps {
   onSelectActivity?: (activity: ActividadRow) => void;
@@ -272,6 +274,9 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
         setActivities((prev) =>
           prev.map((item) => (item.id === updated.id ? updated : item))
         );
+        toast.success('Actividad actualizada', {
+          description: `Se guardaron los cambios para ${updated.codigo_referencia}.`,
+        });
       } else {
         const newAct: ActividadInsert = {
           codigo_referencia: formData.codigo_referencia.trim(),
@@ -285,11 +290,16 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
         };
         const created = await activityService.create(newAct);
         setActivities((prev) => [created, ...prev]);
+        toast.success('Actividad creada exitosamente', {
+          description: `Código: ${created.codigo_referencia} sincronizado en la nube.`,
+        });
       }
       setIsModalOpen(false);
     } catch (err: unknown) {
       console.error('[ActivitiesManager] Error guardando actividad:', err);
-      setFormError(err instanceof Error ? err.message : 'Error inesperado al guardar actividad.');
+      const msg = err instanceof Error ? err.message : 'Error inesperado al guardar actividad en Supabase.';
+      setFormError(msg);
+      toast.error('Error al guardar actividad', { description: msg });
     } finally {
       setSaving(false);
     }
@@ -331,6 +341,10 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
               <Badge variant="secondary" className="font-mono text-xs">
                 {activities.length} registradas
               </Badge>
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                <CloudCheck className="w-3.5 h-3.5" />
+                <span>Nube Conectada</span>
+              </span>
             </div>
             <CardDescription className="text-xs sm:text-sm text-muted-foreground">
               Administra órdenes de trabajo operativas, asocia evidencias fotográficas forenses y genera fichas de inspección inmutables.

@@ -56,7 +56,8 @@ graph LR
 ELIS 5.0 Core
 ├── 📸 Ingesta de Evidencias (Deduplicacion SHA-256 + Sanitizacion EXIF GPS)
 ├── 🪪 Reconocimiento OCR (Recorte react-easy-crop + Tesseract.js en Web Worker)
-├── 📋 Gestor de Actividades (CRUD Reactivo + Dictado por Voz Web Speech es-PE)
+├── 📋 Gestor de Actividades y Formatos HSE (Checklists 15 Sec + F-128 Amonestaciones)
+├── ⚡ Sincronización Cloud Ultrarrápida (RPC Atómica Postgres + Índice GIN + Auto-retry)
 ├── 🛡️ Seguridad Inmutable (Supabase Storage S3 :ro + Postgres RLS + Triggers)
 └── 📄 Fichas de Inspeccion (Plantillas corporativas exportables a PDF con react-to-print)
 ```
@@ -102,7 +103,7 @@ npm run setup
 * `npm run dev`: Inicia el servidor de desarrollo local en `http://localhost:5173`.
 * `npm run dev -- --host`: Expone el servidor en la red de área local (WiFi).
 * `npm run setup`: Descarga dependencias y arranca el servidor con host abierto.
-* `npm test`: Ejecuta los **35 tests unitarios** con Vitest (servicios, criptografía, UI).
+* `npm test`: Ejecuta la suite de **92 tests unitarios (22 suites / 100% pasando)** con Vitest (servicios, RLS, criptografía, OCR, Auth, UI).
 * `npm run build`: Verifica tipos (`tsc -b`) y empaqueta el build de producción en `dist/`.
 * `npm run lint`: Análisis estático ultrarrápido con Oxlint.
 
