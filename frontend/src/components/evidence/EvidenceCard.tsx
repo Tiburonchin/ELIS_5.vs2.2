@@ -20,7 +20,7 @@ export interface EvidenceCardProps {
 
 type OcrStep = 'crop' | 'ocr_running' | 'edit' | 'saved';
 
-export const EvidenceCard: React.FC<EvidenceCardProps> = ({
+export const EvidenceCard: React.FC<EvidenceCardProps> = React.memo(({
   evidence,
   bucketName = 'evidencias',
   onSelect,
@@ -39,8 +39,9 @@ export const EvidenceCard: React.FC<EvidenceCardProps> = ({
   const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string>('');
   const [savedIdentificacion, setSavedIdentificacion] = useState<IdentificacionRow | null>(null);
 
-  // Obtener URL pública desde el bucket Supabase Storage
-  const thumbPath = evidence.ruta_thumb || evidence.ruta_storage;
+  // Obtener URL pública desde el bucket Supabase Storage priorizando la miniatura liviana .webp
+  // Garantiza carga ultrarrápida y mínimo consumo de ancho de banda en dispositivos móviles
+  const thumbPath = evidence.ruta_thumb ? evidence.ruta_thumb : evidence.ruta_storage;
   const thumbnailUrl = thumbPath
     ? supabase.storage.from(bucketName).getPublicUrl(thumbPath).data.publicUrl
     : '';
@@ -304,6 +305,6 @@ export const EvidenceCard: React.FC<EvidenceCardProps> = ({
       </Modal>
     </>
   );
-};
+});
 
 export default EvidenceCard;

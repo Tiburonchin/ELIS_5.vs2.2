@@ -155,7 +155,7 @@ export function useAuth(): UseAuthReturn {
   }, [loadProfile]);
 
   /**
-   * Método de logout reactivo
+   * Método de logout reactivo con limpieza total de sesión y almacenamiento
    */
   const logout = useCallback(async () => {
     setIsLoading(true);
@@ -167,10 +167,30 @@ export function useAuth(): UseAuthReturn {
         return { success: false, error: signOutError };
       }
 
+      // Limpieza estricta de estado local en memoria
       setUser(null);
       setProfile(null);
       setSession(null);
       setError(null);
+
+      // Limpieza higiénica de credenciales y caché en almacenamiento del navegador
+      if (typeof window !== 'undefined') {
+        try {
+          // Remover tokens residuales o llaves de caché
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach((k) => localStorage.removeItem(k));
+          sessionStorage.clear();
+        } catch (storageErr) {
+          console.warn('[useAuth] Error menor al limpiar storage:', storageErr);
+        }
+      }
+
       setIsLoading(false);
       return { success: true };
     } catch (err) {

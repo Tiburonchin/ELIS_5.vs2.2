@@ -64,7 +64,12 @@ describe('useAuth Hook', () => {
 
     const { result } = renderHook(() => useAuth());
 
-    // Esperar a que se completen los efectos
+    // 1. Validar que el estado inicial isLoading sea verdadero de inmediato
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isAuthenticated).toBe(false);
+    expect(result.current.user).toBeNull();
+
+    // 2. Esperar a que se completen los efectos de carga inicial
     await vi.waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });

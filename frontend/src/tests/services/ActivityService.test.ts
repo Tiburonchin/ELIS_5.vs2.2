@@ -98,6 +98,58 @@ describe('ActivityService - Formatos HSE e Inyección de responsable_id', () => 
     expect(result.responsable_id).toBe('usr-inspector-888');
   });
 
+  it('createActivity inyecta responsable_id antes de llamar a supabase.from(\'actividades\').insert()', async () => {
+    const mockUser = { id: 'usr-inspector-999' };
+    ((supabase.auth as any).getUser).mockResolvedValueOnce({
+      data: { user: mockUser },
+      error: null,
+    });
+
+    const singleMock = vi.fn().mockResolvedValueOnce({
+      data: {
+        id: 'act-uuid-created-999',
+        codigo_referencia: 'AMON-2026-002',
+        tipo_actividad: 'AMONESTACION',
+        fecha_operacion: '2026-10-14',
+        responsable_id: 'usr-inspector-999',
+        responsable_nombre: 'Ing. Carlos Mendoza',
+        ubicacion: 'Frente Mina Nivel 4',
+        descripcion: 'Amonestación directa',
+        estado_reporte: 'pendiente',
+        datos_formato_json: null,
+        creado_en: '2026-10-14T10:35:00Z',
+        actualizado_en: '2026-10-14T10:35:00Z',
+      },
+      error: null,
+    });
+
+    const selectMock = vi.fn().mockReturnValue({ single: singleMock });
+    const insertMock = vi.fn().mockReturnValue({ select: selectMock });
+
+    (supabase.from as any).mockReturnValueOnce({
+      insert: insertMock,
+    });
+
+    const result = await activityService.createActivity({
+      codigo_referencia: 'AMON-2026-002',
+      tipo_actividad: 'AMONESTACION',
+      fecha_operacion: '2026-10-14',
+      responsable_nombre: 'Ing. Carlos Mendoza',
+      ubicacion: 'Frente Mina Nivel 4',
+      descripcion: 'Amonestación directa',
+    });
+
+    expect(supabase.from).toHaveBeenCalledWith('actividades');
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codigo_referencia: 'AMON-2026-002',
+        tipo_actividad: 'AMONESTACION',
+        responsable_id: 'usr-inspector-999',
+      })
+    );
+    expect(result.responsable_id).toBe('usr-inspector-999');
+  });
+
   it('vincularEvidencia invoca el RPC vincular_evidencia_atomica con los parámetros correctos', async () => {
     ((supabase as any).rpc).mockResolvedValueOnce({
       data: true,

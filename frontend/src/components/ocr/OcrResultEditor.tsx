@@ -26,8 +26,20 @@ export const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombres.trim() || !apellidoPaterno.trim() || !apellidoMaterno.trim()) {
-      setErrorMessage('Nombres, apellido paterno y apellido materno son requeridos.');
+    // Sanitización de inputs: remover etiquetas HTML/scripts y caracteres de control (preservando saltos de línea \n)
+    const sanitizeText = (val: string): string =>
+      val
+        .replace(/<[^>]*>?/gm, '') // Remover etiquetas HTML/Script
+        .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, '') // Remover caracteres de control preservando saltos de línea (\n = \x0A)
+        .trim();
+
+    const cleanNombres = sanitizeText(nombres);
+    const cleanApellidoP = sanitizeText(apellidoPaterno);
+    const cleanApellidoM = sanitizeText(apellidoMaterno);
+    const cleanCargo = sanitizeText(cargo);
+
+    if (!cleanNombres || !cleanApellidoP || !cleanApellidoM) {
+      setErrorMessage('Nombres, apellido paterno y apellido materno son requeridos y deben ser válidos.');
       return;
     }
 
@@ -37,12 +49,12 @@ export const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
 
       const saved = await ocrService.saveHumanValidation({
         evidencia_id: evidenciaId,
-        nombres: nombres.trim(),
-        apellido_paterno: apellidoPaterno.trim(),
-        apellido_materno: apellidoMaterno.trim(),
-        cargo: cargo.trim() || null,
-        nivel_confianza: initialData.nivel_confianza,
-        texto_crudo_ocr: initialData.texto_crudo_ocr,
+        nombres: cleanNombres,
+        apellido_paterno: cleanApellidoP,
+        apellido_materno: cleanApellidoM,
+        cargo: cleanCargo || null,
+        nivel_confianza: typeof initialData.nivel_confianza === 'number' ? Math.max(0, Math.min(100, initialData.nivel_confianza)) : null,
+        texto_crudo_ocr: initialData.texto_crudo_ocr ? sanitizeText(initialData.texto_crudo_ocr) : null,
       });
 
       onSaved(saved);

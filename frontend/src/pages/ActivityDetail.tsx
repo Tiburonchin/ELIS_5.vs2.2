@@ -7,8 +7,7 @@ import {
   evidenceService,
   type EvidenciaRow,
 } from '../services/EvidenceService';
-import { PdfExporter } from '../components/reports/PdfExporter';
-import type { LinkedEvidenceItem } from '../components/reports/InspectionReportTemplate';
+import { PdfExporter, type LinkedEvidenceItem } from '../components/reports/PdfExporter';
 import { Modal } from '../components/ui/Modal';
 import { supabase } from '../lib/supabaseClient';
 

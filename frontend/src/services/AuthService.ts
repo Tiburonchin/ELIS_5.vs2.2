@@ -45,6 +45,31 @@ export class AuthService {
   }
 
   /**
+   * Inicia sesión con Google OAuth corporativo mediante supabase.auth.signInWithOAuth
+   */
+  static async signInWithGoogle(): Promise<AuthResponse<{ provider: string; url: string | null }>> {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+        },
+      });
+
+      if (error) {
+        console.error('[AuthService] Error al iniciar sesión con Google:', error.message);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Error inesperado durante el inicio de sesión con Google');
+      console.error('[AuthService] Excepción en signInWithGoogle:', error);
+      return { data: null, error };
+    }
+  }
+
+  /**
    * Cierra la sesión activa actual
    */
   static async signOut(): Promise<AuthResponse<void>> {

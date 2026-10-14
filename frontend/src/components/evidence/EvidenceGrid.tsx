@@ -147,16 +147,20 @@ export const EvidenceGrid: React.FC<EvidenceGridProps> = ({
         </div>
       )}
 
-      {/* Grid responsivo Mobile-First */}
+      {/* Grid responsivo Mobile-First con renderizado memoizado */}
       {evidences.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {evidences.map((evidence) => (
-            <EvidenceCard
-              key={evidence.id}
-              evidence={evidence}
-              onSelect={onSelectEvidence}
-            />
-          ))}
+          {React.useMemo(
+            () =>
+              evidences.map((evidence) => (
+                <EvidenceCard
+                  key={evidence.id}
+                  evidence={evidence}
+                  onSelect={onSelectEvidence}
+                />
+              )),
+            [evidences, onSelectEvidence]
+          )}
         </div>
       )}
     </div>

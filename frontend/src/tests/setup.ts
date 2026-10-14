@@ -116,3 +116,20 @@ Object.defineProperty(window, 'speechSynthesis', {
   configurable: true,
   value: mockSpeechSynthesis,
 });
+
+// Mock de window.matchMedia para componentes responsive (Sidebar, useIsMobile)
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  configurable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(), // deprecated
+    removeListener: vi.fn(), // deprecated
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+

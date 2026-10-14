@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import type { Database } from '../types/database.types';
+import { toast } from 'sonner';
 
 export type TableName = keyof Database['public']['Tables'];
 
@@ -54,14 +55,34 @@ export class BaseSupabaseService<
   }
 
   /**
-   * Manejador centralizado de errores para formatear excepciones RLS de Postgres (42501)
+   * Manejador centralizado de errores para formatear excepciones RLS de Postgres (42501, 401, 403)
    */
   protected handleDatabaseError(error: any, operation: string): never {
-    // Código PostgreSQL 42501: insufficient_privilege (RLS policy violation)
-    if (error?.code === '42501' || error?.message?.toLowerCase().includes('violates row-level security')) {
-      const rlsMsg = `[RLS Denied] Acceso denegado por política de seguridad en la tabla "${this.tableName}" durante la operación ${operation}.`;
-      console.error(rlsMsg, error);
-      throw new RlsSecurityError(rlsMsg, error.code, error.details, error.hint);
+    const isRlsViolation =
+      error?.code === '42501' ||
+      error?.code === '401' ||
+      error?.code === '403' ||
+      error?.status === 401 ||
+      error?.status === 403 ||
+      error?.message?.toLowerCase().includes('violates row-level security') ||
+      error?.message?.toLowerCase().includes('permission denied');
+
+    if (isRlsViolation) {
+      const rlsMsg = `Acceso denegado por política de seguridad en la tabla "${this.tableName}" (${operation}).`;
+      console.error(`[RLS Denied] ${rlsMsg}`, error);
+
+      // Notificación elegante al usuario sin romper el hilo de ejecución silenciosamente
+      if (typeof window !== 'undefined') {
+        try {
+          toast.error('Restricción de Seguridad RLS', {
+            description: `No cuenta con privilegios suficientes para ${operation} en ${this.tableName}.`,
+          });
+        } catch {
+          // Entorno de test o soporte sin DOM
+        }
+      }
+
+      throw new RlsSecurityError(rlsMsg, error?.code, error?.details, error?.hint);
     }
 
     console.error(`[BaseSupabaseService] Error en ${operation} para ${this.tableName}:`, error);

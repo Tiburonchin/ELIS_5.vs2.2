@@ -57,6 +57,14 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     responsable_nombre: string;
     descripcion: string;
     estado_reporte: 'pendiente' | 'exportada' | 'publicada';
+    amonestado_nombre: string;
+    amonestado_dni: string;
+    amonestado_cargo: string;
+    amonestado_empresa: string;
+    motivo_codigo: '01' | '02' | '03' | '04';
+    nivel_riesgo: '01_INTOLERABLE' | '02_BAJO' | '03_MODERADO' | '04_OTRO';
+    sancion_tipo: '01_LLAMADA_ATENCION' | '02_SUSPENSION' | '03_RETIRO_INMEDIATO' | '04_OTRO';
+    accion_inmediata: string;
   }>({
     codigo_referencia: '',
     tipo_actividad: 'INSPECCION',
@@ -65,6 +73,14 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     responsable_nombre: '',
     descripcion: '',
     estado_reporte: 'pendiente',
+    amonestado_nombre: '',
+    amonestado_dni: '',
+    amonestado_cargo: '',
+    amonestado_empresa: '',
+    motivo_codigo: '02',
+    nivel_riesgo: '02_BAJO',
+    sancion_tipo: '01_LLAMADA_ATENCION',
+    accion_inmediata: '',
   });
 
   const [saving, setSaving] = useState<boolean>(false);
@@ -125,6 +141,14 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
       responsable_nombre: '',
       descripcion: '',
       estado_reporte: 'pendiente',
+      amonestado_nombre: '',
+      amonestado_dni: '',
+      amonestado_cargo: '',
+      amonestado_empresa: '',
+      motivo_codigo: '02',
+      nivel_riesgo: '02_BAJO',
+      sancion_tipo: '01_LLAMADA_ATENCION',
+      accion_inmediata: '',
     });
     resetTranscript();
     setFormError(null);
@@ -134,6 +158,9 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
   // Abrir modal para editar
   const handleOpenEdit = (act: ActividadRow) => {
     setEditingActivity(act);
+    const datosHse = (act.datos_formato_json as any) || {};
+    const amon = datosHse.datos_amonestado || {};
+    const mot = datosHse.motivo_amonestacion || {};
     setFormData({
       codigo_referencia: act.codigo_referencia,
       tipo_actividad: act.tipo_actividad,
@@ -142,6 +169,14 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
       responsable_nombre: act.responsable_nombre,
       descripcion: act.descripcion || '',
       estado_reporte: act.estado_reporte,
+      amonestado_nombre: amon.apellidos_nombres || '',
+      amonestado_dni: amon.dni || '',
+      amonestado_cargo: amon.cargo || '',
+      amonestado_empresa: amon.empresa || '',
+      motivo_codigo: mot.codigo_motivo || '02',
+      nivel_riesgo: datosHse.nivel_riesgo || '02_BAJO',
+      sancion_tipo: datosHse.sancion_aplicada_risst || '01_LLAMADA_ATENCION',
+      accion_inmediata: datosHse.accion_inmediata_hechos || '',
     });
     resetTranscript();
     setFormError(null);
@@ -167,7 +202,50 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     setSaving(true);
     setFormError(null);
 
+    // Sanitización general para entradas de texto libre
+    const cleanStr = (s: string) => s.replace(/<[^>]*>?/gm, '').trim();
+
     try {
+      // Construir objeto JSONB según tipo de actividad con strings higienizados
+      let formatoJson: Record<string, unknown> = {};
+      if (formData.tipo_actividad === 'AMONESTACION') {
+        formatoJson = {
+          tipo_formato: 'HSE_EL_F_128',
+          datos_amonestado: {
+            apellidos_nombres: cleanStr(formData.amonestado_nombre),
+            dni: cleanStr(formData.amonestado_dni),
+            cargo: cleanStr(formData.amonestado_cargo),
+            empresa: cleanStr(formData.amonestado_empresa),
+            ubicacion: cleanStr(formData.ubicacion),
+            fecha_hora: `${formData.fecha_operacion} 08:00`,
+          },
+          supervisores_responsables: {
+            capataz_cuadrilla: 'Capataz de Turno',
+            ingeniero_responsable: cleanStr(formData.responsable_nombre),
+            actividad_en_ejecucion: cleanStr(formData.descripcion) || 'Operación en campo',
+          },
+          motivo_amonestacion: {
+            codigo_motivo: formData.motivo_codigo,
+            descripcion_motivo: formData.motivo_codigo === '01' ? 'Falta RIIST' : formData.motivo_codigo === '02' ? 'Acto Subestándar' : formData.motivo_codigo === '03' ? 'Observación HSE' : 'Condición Subestándar',
+            detalle_motivo: cleanStr(formData.descripcion) || 'Infracción a normas de seguridad y salud en el trabajo.',
+          },
+          nivel_riesgo: formData.nivel_riesgo,
+          accion_inmediata_hechos: cleanStr(formData.accion_inmediata) || 'Paralización de labor e instrucción inmediata.',
+          sancion_aplicada_risst: formData.sancion_tipo,
+          dias_suspension: formData.sancion_tipo === '02_SUSPENSION' ? 3 : undefined,
+          validaciones_firmas: {
+            realizado_por: cleanStr(formData.responsable_nombre),
+            aprobado_por: 'Ing. Jefe HSE',
+            aceptado_por: cleanStr(formData.amonestado_nombre) || 'Trabajador Notificado',
+          },
+        };
+      } else {
+        formatoJson = {
+          tipo_formato: 'CHECKLIST_15_SECCIONES',
+          items_evaluados: {},
+        };
+      }
+
       if (editingActivity) {
         const changes: ActividadUpdate = {
           tipo_actividad: formData.tipo_actividad,
@@ -176,6 +254,7 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
           responsable_nombre: formData.responsable_nombre,
           descripcion: formData.descripcion || null,
           estado_reporte: formData.estado_reporte,
+          datos_formato_json: formatoJson as any,
         };
         const updated = await activityService.update(editingActivity.id, changes);
         setActivities((prev) =>
@@ -190,6 +269,7 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
           responsable_nombre: formData.responsable_nombre.trim(),
           descripcion: formData.descripcion || null,
           estado_reporte: formData.estado_reporte,
+          datos_formato_json: formatoJson as any,
         };
         const created = await activityService.create(newAct);
         setActivities((prev) => [created, ...prev]);
@@ -568,6 +648,133 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
               />
             </div>
           </div>
+
+          {/* Sección de Campos HSE-EL-F-128 si la actividad es de tipo AMONESTACION */}
+          {formData.tipo_actividad === 'AMONESTACION' && (
+            <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-destructive uppercase tracking-tight">
+                  Datos del Formato de Amonestación HSE-EL-F-128
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-medium text-foreground">
+                    Trabajador Amonestado (Apellidos y Nombres)
+                  </label>
+                  <Input
+                    type="text"
+                    value={formData.amonestado_nombre}
+                    onChange={(e) => setFormData({ ...formData, amonestado_nombre: e.target.value })}
+                    className="text-xs h-8"
+                    placeholder="Quispe Mamani Juan"
+                    required={formData.tipo_actividad === 'AMONESTACION'}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-medium text-foreground">
+                    DNI / Documento de Identidad
+                  </label>
+                  <Input
+                    type="text"
+                    value={formData.amonestado_dni}
+                    onChange={(e) => setFormData({ ...formData, amonestado_dni: e.target.value })}
+                    className="text-xs h-8 font-mono"
+                    placeholder="45892134"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-medium text-foreground">
+                    Cargo / Ocupación
+                  </label>
+                  <Input
+                    type="text"
+                    value={formData.amonestado_cargo}
+                    onChange={(e) => setFormData({ ...formData, amonestado_cargo: e.target.value })}
+                    className="text-xs h-8"
+                    placeholder="Andamiero / Operador"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-medium text-foreground">
+                    Empresa Contratista
+                  </label>
+                  <Input
+                    type="text"
+                    value={formData.amonestado_empresa}
+                    onChange={(e) => setFormData({ ...formData, amonestado_empresa: e.target.value })}
+                    className="text-xs h-8"
+                    placeholder="Contratista Minera SAC"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-medium text-foreground">
+                    Motivo de Amonestación
+                  </label>
+                  <select
+                    value={formData.motivo_codigo}
+                    onChange={(e) => setFormData({ ...formData, motivo_codigo: e.target.value as any })}
+                    className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background text-foreground shadow-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                  >
+                    <option value="01">01. Falta HSE (RIIST)</option>
+                    <option value="02">02. Acto Subestándar</option>
+                    <option value="03">03. Observación HSE</option>
+                    <option value="04">04. Condición Subestándar</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-medium text-foreground">
+                    Nivel de Riesgo
+                  </label>
+                  <select
+                    value={formData.nivel_riesgo}
+                    onChange={(e) => setFormData({ ...formData, nivel_riesgo: e.target.value as any })}
+                    className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background text-foreground shadow-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                  >
+                    <option value="01_INTOLERABLE">01. Intolerable</option>
+                    <option value="02_BAJO">02. Bajo</option>
+                    <option value="03_MODERADO">03. Moderado</option>
+                    <option value="04_OTRO">04. Otro</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="block text-[11px] font-medium text-foreground">
+                    Sanción Aplicada (según RISST)
+                  </label>
+                  <select
+                    value={formData.sancion_tipo}
+                    onChange={(e) => setFormData({ ...formData, sancion_tipo: e.target.value as any })}
+                    className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background text-foreground shadow-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                  >
+                    <option value="01_LLAMADA_ATENCION">01. Llamada de Atención Escrita</option>
+                    <option value="02_SUSPENSION">02. Suspensión de Labores (3 días)</option>
+                    <option value="03_RETIRO_INMEDIATO">03. Retiro Inmediato del Proyecto</option>
+                    <option value="04_OTRO">04. Otra Medida Disciplinaria</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="block text-[11px] font-medium text-foreground">
+                    Acción Inmediata Adoptada en Sitio
+                  </label>
+                  <Input
+                    type="text"
+                    value={formData.accion_inmediata}
+                    onChange={(e) => setFormData({ ...formData, accion_inmediata: e.target.value })}
+                    className="text-xs h-8"
+                    placeholder="Paralización de labor y re-inducción al trabajador"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Campo Descripción con Botón de Dictado por Voz */}
           <div className="space-y-1">

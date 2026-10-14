@@ -101,15 +101,16 @@ export async function runOcrOnCrop(
   imageSource: string | Blob | HTMLCanvasElement,
   onProgress?: (progress: number, status: string) => void
 ): Promise<OcrExtractedData> {
-  const worker = await createWorker('spa', 1, {
-    logger: (m) => {
-      if (onProgress && m.progress !== undefined) {
-        onProgress(m.progress, m.status);
-      }
-    },
-  });
-
+  let worker: Awaited<ReturnType<typeof createWorker>> | null = null;
   try {
+    worker = await createWorker('spa', 1, {
+      logger: (m) => {
+        if (onProgress && m.progress !== undefined) {
+          onProgress(m.progress, m.status);
+        }
+      },
+    });
+
     const ret = await worker.recognize(imageSource);
     const rawText = ret.data.text || '';
     const confidence = ret.data.confidence ?? 0;
@@ -122,6 +123,12 @@ export async function runOcrOnCrop(
       nivel_confianza: Math.round(confidence),
     };
   } finally {
-    await worker.terminate();
+    if (worker) {
+      try {
+        await worker.terminate();
+      } catch (termErr) {
+        console.warn('[ocrClient] Error al terminar instancia del worker:', termErr);
+      }
+    }
   }
 }

@@ -12,6 +12,16 @@ import {
   SidebarGroupContent,
 } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useAuth } from "@/hooks/useAuth"
 import {
   ShieldAlert,
   Camera,
@@ -20,6 +30,9 @@ import {
   FileCheck2,
   HardDrive,
   Sparkles,
+  LogOut,
+  User,
+  ChevronsUpDown,
 } from "lucide-react"
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -36,6 +49,22 @@ export function AppSidebar({
   activityCount = 0,
   ...props
 }: AppSidebarProps) {
+  const { user, profile, logout } = useAuth();
+
+  // Iniciales para el avatar
+  const getInitials = (name?: string | null) => {
+    if (!name) return "US";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const displayName = profile?.nombres_completos || user?.email?.split("@")[0] || "Inspector";
+  const displayCargo = profile?.cargo || "Supervisor HSE";
+  const displayEmail = user?.email || "";
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
@@ -138,8 +167,65 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-3 group-data-[collapsible=icon]:hidden">
-        <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-2 text-xs">
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="w-full">
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer w-full"
+                >
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs font-bold">
+                      {getInitials(displayName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate font-semibold">{displayName}</span>
+                    <span className="truncate text-[10px] text-muted-foreground">{displayCargo}</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden text-muted-foreground" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                side="top"
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                      <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs font-bold">
+                        {getInitials(displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="grid flex-1 text-left text-xs leading-tight">
+                      <span className="truncate font-semibold">{displayName}</span>
+                      <span className="truncate text-[10px] text-muted-foreground">{displayEmail}</span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 cursor-pointer text-xs">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Rol: {profile?.rol?.toUpperCase() || 'INSPECTOR'}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => logout()}
+                  className="gap-2 text-destructive focus:text-destructive cursor-pointer text-xs"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Cerrar Sesión</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        <div className="flex items-center gap-2 rounded-lg bg-muted/40 p-2 text-xs mt-1 group-data-[collapsible=icon]:hidden">
           <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
           <div className="truncate">
             <p className="font-medium text-foreground">Modo PWA Offline</p>

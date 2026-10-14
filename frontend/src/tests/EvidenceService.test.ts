@@ -9,9 +9,16 @@ vi.mock('../lib/supabaseClient', () => {
   const storageMock = {
     from: vi.fn(),
   };
+  const authMock = {
+    getUser: vi.fn().mockResolvedValue({
+      data: { user: { id: 'usr-subidor-1234' } },
+      error: null,
+    }),
+  };
 
   return {
     supabase: {
+      auth: authMock,
       from: fromMock,
       storage: storageMock,
     },
@@ -178,6 +185,15 @@ describe('EvidenceService - uploadAndRegisterEvidence', () => {
       `thumbs/${newHash}_thumb.webp`,
       mockThumb,
       { contentType: 'image/webp', upsert: false }
+    );
+
+    // 3. Auditoría de Inyección de Autoría: validar que subido_por fue asignado con el auth.uid() mockeado
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nombre_archivo: 'fresh_evidence.jpg',
+        hash_sha256: newHash,
+        subido_por: 'usr-subidor-1234',
+      })
     );
   });
 });
