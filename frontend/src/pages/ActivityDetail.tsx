@@ -3,12 +3,9 @@ import {
   activityService,
   type ActividadRow,
 } from '../services/ActivityService';
-import {
-  evidenceService,
-  type EvidenciaRow,
-} from '../services/EvidenceService';
+import { type EvidenciaRow } from '../services/EvidenceService';
 import { PdfExporter, type LinkedEvidenceItem } from '../components/reports/PdfExporter';
-import { Modal } from '../components/ui/Modal';
+import { EvidenceLibraryPickerModal, type RolEvidencia } from '../components/evidence/EvidenceLibraryPickerModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -55,8 +52,10 @@ import {
   FileCheck,
   CloudCheck,
   Loader2,
+  Library,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { parseWhatsAppReportText } from '../utils/whatsappReportParser';
 
 export interface ActivityDetailProps {
   activity: ActividadRow;
@@ -75,13 +74,6 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   const [linkedItems, setLinkedItems] = useState<LinkedEvidenceItem[]>([]);
   const [loadingLinked, setLoadingLinked] = useState<boolean>(true);
   const [, setErrorLinked] = useState<string | null>(null);
-
-  // Estados del selector / modal de vinculación
-  const [isLinkModalOpen, setIsLinkModalOpen] = useState<boolean>(false);
-  const [pendingEvidences, setPendingEvidences] = useState<EvidenciaRow[]>([]);
-  const [loadingPending, setLoadingPending] = useState<boolean>(false);
-  const [linkingEvidenceId, setLinkingEvidenceId] = useState<string | null>(null);
-  const [linkNotas, setLinkNotas] = useState<string>('');
 
   // Notificación y guardado
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -302,73 +294,28 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
     fetchLinkedEvidences();
   }, [fetchLinkedEvidences]);
 
-  // Cargar evidencias pendientes para el selector modal
-  const fetchPendingEvidences = async () => {
-    setLoadingPending(true);
-    try {
-      const data = await evidenceService.getByEstado('pendiente');
-      setPendingEvidences(data);
-    } catch (err: unknown) {
-      console.error('[ActivityDetail] Error cargando evidencias pendientes:', err);
-    } finally {
-      setLoadingPending(false);
-    }
-  };
 
-  const handleOpenLinkModal = () => {
-    fetchPendingEvidences();
-    setLinkNotas('');
+  // Estados del selector / modal de biblioteca reutilizable
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState<boolean>(false);
+  const [modalDefaultRol, setModalDefaultRol] = useState<RolEvidencia>('hallazgo');
+
+  const handleOpenLinkModal = (rol: RolEvidencia = 'hallazgo') => {
+    setModalDefaultRol(rol);
     setIsLinkModalOpen(true);
   };
 
-  // Vinculación atómica
-  const handleVincularEvidencia = async (evidencia: EvidenciaRow) => {
-    setLinkingEvidenceId(evidencia.id);
-    const prevLinked = [...linkedItems];
-    const prevPending = [...pendingEvidences];
-
-    const optimisticItem: LinkedEvidenceItem = {
-      vinculo: {
-        actividad_id: currentActivity.id,
-        evidencia_id: evidencia.id,
-        notas: linkNotas || null,
-        vinculado_en: new Date().toISOString(),
-        vinculado_por: null,
-      },
-      evidencia: {
-        ...evidencia,
-        estado: 'vinculada',
-      },
-      identificacion: null,
-    };
-
-    setLinkedItems((prev) => [optimisticItem, ...prev]);
-    setPendingEvidences((prev) => prev.filter((e) => e.id !== evidencia.id));
-
-    try {
-      await activityService.vincularEvidencia(
-        evidencia.id,
-        currentActivity.id,
-        linkNotas.trim() || undefined
-      );
-
-      setNotification({
-        message: `Evidencia "${evidencia.nombre_archivo}" vinculada correctamente.`,
-        type: 'success',
-      });
-      setTimeout(() => setNotification(null), 3500);
-      fetchLinkedEvidences();
-    } catch (err: unknown) {
-      console.error('[ActivityDetail] Error al vincular evidencia:', err);
-      setLinkedItems(prevLinked);
-      setPendingEvidences(prevPending);
-      setNotification({
-        message: 'No se pudo vincular la evidencia. Revisa la conexión.',
-        type: 'error',
-      });
-    } finally {
-      setLinkingEvidenceId(null);
-    }
+  const handleEvidencesLinkedFromModal = (
+    newlyLinked: EvidenciaRow[],
+    rol: RolEvidencia
+  ) => {
+    fetchLinkedEvidences();
+    setNotification({
+      message: `${newlyLinked.length} ${
+        newlyLinked.length === 1 ? 'evidencia vinculada' : 'evidencias vinculadas'
+      } con rol "${rol}".`,
+      type: 'success',
+    });
+    setTimeout(() => setNotification(null), 3500);
   };
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -477,6 +424,87 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
     setTimeout(() => setNotification(null), 4000);
   };
 
+  // Botón: Autocompletar Informe con datos de esta imagen (OCR / Sello / WhatsApp de evidencias vinculadas)
+  const handleAutocompletarDesdeEvidencias = (itemToUse?: LinkedEvidenceItem) => {
+    // Si se pasa un item específico se usa, de lo contrario se busca el primero con OCR o metadatos
+    const targetItem = itemToUse || linkedItems.find(
+      (item) => (item.evidencia.metadatos_json as any)?.ocr_extracted_data || item.identificacion
+    );
+
+    if (!targetItem) {
+      toast.info('No se detectaron datos extraídos por OCR en las evidencias vinculadas.');
+      return;
+    }
+
+    const ocrData = (targetItem.evidencia.metadatos_json as any)?.ocr_extracted_data;
+    const rawOcrText = ocrData?.texto_crudo || targetItem.identificacion?.texto_crudo_ocr || '';
+
+    // Si tenemos texto, parsearlo con el motor heurístico
+    if (rawOcrText) {
+      const parsed = parseWhatsAppReportText(rawOcrText, targetItem.evidencia.fecha_captura || targetItem.evidencia.fecha_ingesta);
+
+      if (!isAmonestacion) {
+        setF120Data((prev) => ({
+          ...prev,
+          cabecera: {
+            ...prev.cabecera,
+            lugar: parsed.ubicacion || prev.cabecera.lugar,
+            proyecto: parsed.proyecto || prev.cabecera.proyecto,
+            actividad: parsed.actividad || prev.cabecera.actividad,
+            fecha_inspeccion: parsed.fecha || prev.cabecera.fecha_inspeccion,
+            hora_inspeccion: parsed.hora || prev.cabecera.hora_inspeccion,
+            supervisor_encargado: parsed.supervisor || prev.cabecera.supervisor_encargado,
+          },
+          personal_involucrado: parsed.trabajador.nombreCompleto ? [
+            {
+              nombre_completo: parsed.trabajador.nombreCompleto,
+              cargo: parsed.trabajador.cargo,
+              evidencia_fotocheck_id: targetItem.evidencia.id,
+            },
+            ...prev.personal_involucrado.filter((p) => p.nombre_completo !== parsed.trabajador.nombreCompleto),
+          ] : prev.personal_involucrado,
+          hallazgos_y_levantamiento: parsed.hallazgo.descripcion ? [
+            {
+              item_ref: parsed.hallazgo.itemReferencia || '9.3',
+              descripcion_hallazgo: parsed.hallazgo.descripcion,
+              accion_levantamiento: parsed.hallazgo.accionLevantamiento,
+              evidencia_hallazgo_id: targetItem.evidencia.id,
+              no_requiere_foto_correccion: true,
+            },
+            ...prev.hallazgos_y_levantamiento,
+          ] : prev.hallazgos_y_levantamiento,
+        }));
+      } else {
+        setF128Data((prev) => ({
+          ...prev,
+          amonestado: {
+            ...prev.amonestado,
+            apellidos_nombres: parsed.trabajador.nombreCompleto || prev.amonestado.apellidos_nombres,
+            dni: parsed.trabajador.dni || prev.amonestado.dni,
+            cargo: parsed.trabajador.cargo || prev.amonestado.cargo,
+            empresa: parsed.trabajador.empresa || prev.amonestado.empresa,
+            ubicacion: parsed.ubicacion || prev.amonestado.ubicacion,
+            fecha: parsed.fecha || prev.amonestado.fecha,
+            hora: parsed.hora || prev.amonestado.hora,
+          },
+          relato_razon: parsed.amonestacion.relatoHechos || prev.relato_razon,
+          accion_inmediata: parsed.amonestacion.accionInmediata || prev.accion_inmediata,
+        }));
+      }
+
+      toast.success('Informe autocompletado con éxito', {
+        description: `Se importaron datos extraídos de "${targetItem.evidencia.nombre_archivo}".`,
+      });
+      return;
+    }
+
+    // Fallback a identificación simple de fotocheck
+    if (targetItem.identificacion) {
+      if (isAmonestacion) handleImportarOperarioOcrF128();
+      else handleImportarOperarioOcrF120();
+    }
+  };
+
   // Marcar sección completa como 'S' (Seguro)
   const handleMarcarSeccionSeguro = (seccionItems: Array<{ codigo: string }>) => {
     const codigosSeccion = new Set(seccionItems.map((it) => it.codigo));
@@ -559,7 +587,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
         currentActivity.id,
         datosJson as any,
         camposGenerales,
-        currentActivity.estado_reporte
+        (currentActivity.estado_reporte as 'pendiente' | 'exportada' | 'publicada') || undefined
       );
 
       setCurrentActivity(updated);
@@ -1148,29 +1176,42 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
                     Asigna el ítem observado, describe el hallazgo y vincula fotos del antes (hallazgo) y después (corrección).
                   </CardDescription>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setF120Data({
-                      ...f120Data,
-                      hallazgos_y_levantamiento: [
-                        ...f120Data.hallazgos_y_levantamiento,
-                        {
-                          item_ref: '9.3',
-                          descripcion_hallazgo: '',
-                          accion_levantamiento: '',
-                          no_requiere_foto_correccion: false,
-                        },
-                      ],
-                    });
-                  }}
-                  className="cursor-pointer gap-1.5 text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Agregar Hallazgo</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenLinkModal('correccion')}
+                    className="cursor-pointer gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/5"
+                  >
+                    <Library className="w-3.5 h-3.5" />
+                    <span>Biblioteca de Fotos</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setF120Data({
+                        ...f120Data,
+                        hallazgos_y_levantamiento: [
+                          ...f120Data.hallazgos_y_levantamiento,
+                          {
+                            item_ref: '9.3',
+                            descripcion_hallazgo: '',
+                            accion_levantamiento: '',
+                            no_requiere_foto_correccion: false,
+                          },
+                        ],
+                      });
+                    }}
+                    className="cursor-pointer gap-1.5 text-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Agregar Hallazgo</span>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {f120Data.hallazgos_y_levantamiento.length === 0 ? (
@@ -1451,7 +1492,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
                 </div>
                 <Button
                   type="button"
-                  onClick={handleOpenLinkModal}
+                  onClick={() => handleOpenLinkModal('hallazgo')}
                   className="cursor-pointer gap-2 text-xs font-semibold"
                 >
                   <Plus className="w-4 h-4" />
@@ -1490,6 +1531,20 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
                           <div className="text-[10px] text-muted-foreground italic">
                             Sin lectura OCR de fotocheck
                           </div>
+                        )}
+
+                        {((evidencia.metadatos_json as any)?.ocr_extracted_data || identificacion) && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAutocompletarDesdeEvidencias({ evidencia, identificacion, vinculo: null as any })}
+                            className="w-full h-7 text-[10px] gap-1 cursor-pointer border-amber-500/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold"
+                            title="Autocompletar ubicación, fecha, operario o hallazgo con datos extraídos de esta imagen"
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-500" />
+                            <span>Autocompletar Informe con datos de esta imagen</span>
+                          </Button>
                         )}
                       </div>
                     ))}
@@ -1895,7 +1950,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
                 </div>
                 <Button
                   type="button"
-                  onClick={handleOpenLinkModal}
+                  onClick={() => handleOpenLinkModal('hallazgo')}
                   className="cursor-pointer gap-2 text-xs font-semibold"
                 >
                   <Plus className="w-4 h-4" />
@@ -1921,6 +1976,19 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
                             <div className="text-[10px] text-muted-foreground">DNI: {(identificacion as any).dni_numero || identificacion.texto_crudo_ocr?.match(/\b\d{8}\b/)?.[0] || '-'}</div>
                           </div>
                         )}
+                        {((evidencia.metadatos_json as any)?.ocr_extracted_data || identificacion) && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAutocompletarDesdeEvidencias({ evidencia, identificacion, vinculo: null as any })}
+                            className="w-full h-7 text-[10px] gap-1 cursor-pointer border-amber-500/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold"
+                            title="Autocompletar ubicación, fecha, trabajador o relato con datos extraídos de esta imagen"
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-500" />
+                            <span>Autocompletar Informe con datos de esta imagen</span>
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1943,92 +2011,15 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
         </Tabs>
       )}
 
-      {/* ── MODAL DE VINCULACIÓN DE EVIDENCIAS PENDIENTES ─────────────────── */}
-      <Modal
+      {/* ── MODAL SELECTOR DE BIBLIOTECA REUTILIZABLE (RELACIÓN N:M) ─────────────────── */}
+      <EvidenceLibraryPickerModal
         isOpen={isLinkModalOpen}
         onClose={() => setIsLinkModalOpen(false)}
-        title="Vincular Evidencia Fotográfica a esta Actividad"
-        maxWidth="2xl"
-      >
-        <div className="space-y-4 text-xs">
-          <div>
-            <label className="block font-semibold text-foreground mb-1">
-              Notas u observaciones de vinculación (opcional):
-            </label>
-            <Input
-              value={linkNotas}
-              onChange={(e) => setLinkNotas(e.target.value)}
-              placeholder="Ej. Evidencia fotográfica de hallazgo o fotocheck OCR del operario"
-              className="text-xs"
-            />
-          </div>
-
-          <div className="border-t border-border pt-3">
-            <h4 className="font-semibold text-foreground mb-2">
-              Evidencias en Bandeja con Estado 'Pendiente':
-            </h4>
-
-            {loadingPending ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <p>Buscando evidencias pendientes...</p>
-              </div>
-            ) : pendingEvidences.length === 0 ? (
-              <div className="p-8 text-center border border-dashed border-border rounded-xl text-muted-foreground">
-                No hay evidencias pendientes disponibles para vincular. Sube nuevas evidencias en la Bandeja de Entrada.
-              </div>
-            ) : (
-              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                {pendingEvidences.map((ev) => {
-                  const isLinkingThis = linkingEvidenceId === ev.id;
-                  return (
-                    <div
-                      key={ev.id}
-                      className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3 hover:border-primary/50 transition-colors"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-foreground truncate">{ev.nombre_archivo}</p>
-                        <p className="text-[10px] font-mono text-muted-foreground truncate">
-                          SHA: {ev.hash_sha256}
-                        </p>
-                      </div>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleVincularEvidencia(ev)}
-                        disabled={isLinkingThis}
-                        className="cursor-pointer gap-1 text-xs shrink-0"
-                      >
-                        {isLinkingThis ? (
-                          <span>Vinculando...</span>
-                        ) : (
-                          <>
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Vincular</span>
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end pt-3 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsLinkModalOpen(false)}
-              className="cursor-pointer text-xs"
-            >
-              Cerrar
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        actividadId={currentActivity.id}
+        defaultRol={modalDefaultRol}
+        alreadyLinkedEvidenceIds={linkedItems.map((item) => item.evidencia.id)}
+        onEvidencesLinked={handleEvidencesLinkedFromModal}
+      />
     </div>
   );
 };

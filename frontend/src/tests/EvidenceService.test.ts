@@ -196,4 +196,40 @@ describe('EvidenceService - uploadAndRegisterEvidence', () => {
       })
     );
   });
+
+  it('uploadMultipleEvidences procesa un lote de archivos con reporte de progreso', async () => {
+    const file1 = new File(['file-1'], 'f1.jpg', { type: 'image/jpeg' });
+    const file2 = new File(['file-2'], 'f2.jpg', { type: 'image/jpeg' });
+
+    const mockRes1 = {
+      isDuplicate: false,
+      hash: 'hash1',
+      evidence: { id: 'id-1', nombre_archivo: 'f1.jpg' } as any,
+    };
+    const mockRes2 = {
+      isDuplicate: true,
+      hash: 'hash2',
+      evidence: { id: 'id-2', nombre_archivo: 'f2.jpg' } as any,
+    };
+
+    vi.spyOn(evidenceService, 'uploadAndRegisterEvidence')
+      .mockResolvedValueOnce(mockRes1)
+      .mockResolvedValueOnce(mockRes2);
+
+    const onProgress = vi.fn();
+    const onFileComplete = vi.fn();
+
+    const results = await evidenceService.uploadMultipleEvidences([file1, file2], {
+      concurrency: 2,
+      onProgress,
+      onFileComplete,
+    });
+
+    expect(results).toHaveLength(2);
+    expect(results[0].result).toEqual(mockRes1);
+    expect(results[1].result).toEqual(mockRes2);
+    expect(onFileComplete).toHaveBeenCalledTimes(2);
+    expect(onProgress).toHaveBeenCalled();
+  });
 });
+

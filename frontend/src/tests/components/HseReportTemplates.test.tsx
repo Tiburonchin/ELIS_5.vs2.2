@@ -74,6 +74,7 @@ describe('Auditoría de Plantillas HSE Oficiales P.A. Perú (HSE-EL-F-120 y HSE-
       vinculo: {
         actividad_id: 'act-ins-001',
         evidencia_id: 'evi-1',
+        rol_evidencia: 'hallazgo',
         notas: 'Evidencia de incumplimiento',
         vinculado_en: '2026-10-14T08:30:00Z',
         vinculado_por: 'usr-1',

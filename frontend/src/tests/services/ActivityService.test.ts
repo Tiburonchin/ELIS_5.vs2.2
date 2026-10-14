@@ -156,13 +156,32 @@ describe('ActivityService - Formatos HSE e Inyección de responsable_id', () => 
       error: null,
     });
 
-    const res = await activityService.vincularEvidencia('evi-1', 'act-1', 'Evidencia fotográfica adjunta');
+    const res = await activityService.vincularEvidencia('evi-1', 'act-1', 'Evidencia fotográfica adjunta', 'hallazgo');
 
     expect(supabase.rpc).toHaveBeenCalledWith('vincular_evidencia_atomica', {
       p_evidencia_id: 'evi-1',
       p_actividad_id: 'act-1',
       p_notas: 'Evidencia fotográfica adjunta',
+      p_rol_evidencia: 'hallazgo',
     });
     expect(res).toBe(true);
   });
+
+  it('vincularMultiplesEvidencias invoca el RPC vincular_multiples_evidencias en lote de forma atómica', async () => {
+    ((supabase as any).rpc).mockResolvedValueOnce({
+      data: { success: true, vinculados_count: 2 },
+      error: null,
+    });
+
+    const res = await activityService.vincularMultiplesEvidencias(['evi-1', 'evi-2'], 'act-1', 'correccion');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('vincular_multiples_evidencias', {
+      p_evidencia_ids: ['evi-1', 'evi-2'],
+      p_actividad_id: 'act-1',
+      p_rol_evidencia: 'correccion',
+    });
+    expect(res.success).toBe(true);
+    expect(res.vinculados_count).toBe(2);
+  });
 });
+

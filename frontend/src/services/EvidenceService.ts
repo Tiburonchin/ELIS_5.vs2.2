@@ -147,6 +147,116 @@ export class EvidenceService extends BaseSupabaseService<
   }
 
   /**
+   * Sube múltiples imágenes en paralelo controlado (concurrencia configurable, por defecto 3).
+   * Reporta progreso individual y global mediante callback.
+   * Maneja duplicados de forma resiliente para permitir su inmediata reutilización.
+   */
+  async uploadMultipleEvidences(
+    files: File[],
+    options: {
+      concurrency?: number;
+      bucketName?: string;
+      onProgress?: (progress: {
+        total: number;
+        completed: number;
+        currentFile: string;
+        percentage: number;
+        results: Array<{ file: File; result?: UploadEvidenceResult; error?: Error }>;
+      }) => void;
+      onFileComplete?: (file: File, result?: UploadEvidenceResult, error?: Error) => void;
+    } = {}
+  ): Promise<Array<{ file: File; result?: UploadEvidenceResult; error?: Error }>> {
+    const { concurrency = 3, bucketName = 'evidencias', onProgress, onFileComplete } = options;
+    const total = files.length;
+    let completed = 0;
+    const results: Array<{ file: File; result?: UploadEvidenceResult; error?: Error }> = [];
+
+    if (total === 0) return results;
+
+    // Procesador por chunks con semáforo de concurrencia
+    let index = 0;
+    const executeWorker = async () => {
+      while (index < files.length) {
+        const currentIndex = index++;
+        const file = files[currentIndex];
+        try {
+          const result = await this.uploadAndRegisterEvidence(file, bucketName);
+          const item = { file, result };
+          results[currentIndex] = item;
+          completed++;
+          onFileComplete?.(file, result, undefined);
+        } catch (err: unknown) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          const item = { file, error };
+          results[currentIndex] = item;
+          completed++;
+          onFileComplete?.(file, undefined, error);
+        } finally {
+          const percentage = Math.round((completed / total) * 100);
+          onProgress?.({
+            total,
+            completed,
+            currentFile: file.name,
+            percentage,
+            results: [...results],
+          });
+        }
+      }
+    };
+
+    const workers = Array.from({ length: Math.min(concurrency, total) }, () => executeWorker());
+    await Promise.all(workers);
+
+    return results;
+  }
+
+  /**
+   * Obtiene todas las evidencias de la biblioteca histórica para el selector/modal
+   * Incluye tanto pendientes como vinculadas con orden cronológico descendente.
+   */
+  async getAllEvidencesWithIdentifications(): Promise<Array<{
+    evidencia: EvidenciaRow;
+    identificacion: Database['public']['Tables']['identificaciones']['Row'] | null;
+  }>> {
+    try {
+      const { data, error } = await supabase
+        .from('evidencias')
+        .select(`
+          *,
+          identificaciones (*)
+        `)
+        .order('fecha_ingesta', { ascending: false });
+
+      if (error) {
+        this.handleDatabaseError(error, 'getAllEvidencesWithIdentifications');
+      }
+
+      return (data || []).map((row: any) => ({
+        evidencia: {
+          id: row.id,
+          nombre_archivo: row.nombre_archivo,
+          ruta_storage: row.ruta_storage,
+          ruta_thumb: row.ruta_thumb,
+          hash_sha256: row.hash_sha256,
+          tamano_bytes: row.tamano_bytes,
+          mime_type: row.mime_type,
+          fecha_captura: row.fecha_captura,
+          fecha_ingesta: row.fecha_ingesta,
+          estado: row.estado,
+          metadatos_json: row.metadatos_json,
+          subido_por: row.subido_por,
+        },
+        identificacion: Array.isArray(row.identificaciones)
+          ? row.identificaciones[0] || null
+          : row.identificaciones || null,
+      }));
+    } catch (error) {
+      console.error('[EvidenceService] Error obteniendo biblioteca de evidencias:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Limpia rutas de storage eliminando prefijos redundantes o slash iniciales:
    * ej: 'evidencias/originals/...' -> 'originals/...'
    */

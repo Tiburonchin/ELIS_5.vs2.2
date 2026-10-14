@@ -7,219 +7,175 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.18"
   }
   public: {
     Tables: {
-      perfiles: {
+      actividades: {
         Row: {
-          id: string
-          nombres_completos: string
-          cargo: string
-          rol: 'inspector' | 'supervisor' | 'administrador'
-          telefono: string | null
-          creado_en: string
           actualizado_en: string
+          codigo_referencia: string
+          creado_en: string
+          datos_formato_json: Json
+          descripcion: string | null
+          estado_reporte: string
+          fecha_operacion: string
+          id: string
+          responsable_id: string | null
+          responsable_nombre: string
+          tipo_actividad: string
+          ubicacion: string
         }
         Insert: {
-          id: string
-          nombres_completos: string
-          cargo?: string
-          rol?: 'inspector' | 'supervisor' | 'administrador'
-          telefono?: string | null
-          creado_en?: string
           actualizado_en?: string
+          codigo_referencia: string
+          creado_en?: string
+          datos_formato_json?: Json
+          descripcion?: string | null
+          estado_reporte?: string
+          fecha_operacion: string
+          id?: string
+          responsable_id?: string | null
+          responsable_nombre: string
+          tipo_actividad: string
+          ubicacion: string
         }
         Update: {
-          id?: string
-          nombres_completos?: string
-          cargo?: string
-          rol?: 'inspector' | 'supervisor' | 'administrador'
-          telefono?: string | null
-          creado_en?: string
           actualizado_en?: string
+          codigo_referencia?: string
+          creado_en?: string
+          datos_formato_json?: Json
+          descripcion?: string | null
+          estado_reporte?: string
+          fecha_operacion?: string
+          id?: string
+          responsable_id?: string | null
+          responsable_nombre?: string
+          tipo_actividad?: string
+          ubicacion?: string
         }
         Relationships: []
       }
-      actividades: {
-        Row: {
-          id: string
-          codigo_referencia: string
-          tipo_actividad: 'INSPECCION' | 'CAPACITACION' | 'AUDITORIA' | 'AMONESTACION'
-          fecha_operacion: string
-          responsable_id: string | null
-          responsable_nombre: string
-          ubicacion: string
-          descripcion: string | null
-          estado_reporte: 'pendiente' | 'exportada' | 'publicada'
-          datos_formato_json: Json | null
-          creado_en: string
-          actualizado_en: string
-        }
-        Insert: {
-          id?: string
-          codigo_referencia: string
-          tipo_actividad: 'INSPECCION' | 'CAPACITACION' | 'AUDITORIA' | 'AMONESTACION'
-          fecha_operacion: string
-          responsable_id?: string | null
-          responsable_nombre: string
-          ubicacion: string
-          descripcion?: string | null
-          estado_reporte?: 'pendiente' | 'exportada' | 'publicada'
-          datos_formato_json?: Json | null
-          creado_en?: string
-          actualizado_en?: string
-        }
-        Update: {
-          id?: string
-          codigo_referencia?: string
-          tipo_actividad?: 'INSPECCION' | 'CAPACITACION' | 'AUDITORIA' | 'AMONESTACION'
-          fecha_operacion?: string
-          responsable_id?: string | null
-          responsable_nombre?: string
-          ubicacion?: string
-          descripcion?: string | null
-          estado_reporte?: 'pendiente' | 'exportada' | 'publicada'
-          datos_formato_json?: Json | null
-          creado_en?: string
-          actualizado_en?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "actividades_responsable_id_fkey"
-            columns: ["responsable_id"]
-            isOneToOne: false
-            referencedRelation: "perfiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       auditoria: {
         Row: {
+          creado_en: string
+          entidad_id: string
           id: number
           operacion: string
-          tabla: string
-          entidad_id: string
-          usuario_id: string | null
-          usuario_email: string | null
           payload_anterior: Json | null
           payload_nuevo: Json | null
-          creado_en: string
+          tabla: string
+          usuario_email: string | null
+          usuario_id: string | null
         }
         Insert: {
+          creado_en?: string
+          entidad_id: string
           id?: never
           operacion: string
-          tabla: string
-          entidad_id: string
-          usuario_id?: string | null
-          usuario_email?: string | null
           payload_anterior?: Json | null
           payload_nuevo?: Json | null
-          creado_en?: string
+          tabla: string
+          usuario_email?: string | null
+          usuario_id?: string | null
         }
         Update: {
+          creado_en?: string
+          entidad_id?: string
           id?: never
           operacion?: string
-          tabla?: string
-          entidad_id?: string
-          usuario_id?: string | null
-          usuario_email?: string | null
           payload_anterior?: Json | null
           payload_nuevo?: Json | null
-          creado_en?: string
+          tabla?: string
+          usuario_email?: string | null
+          usuario_id?: string | null
         }
         Relationships: []
       }
       evidencias: {
         Row: {
+          estado: string
+          fecha_captura: string | null
+          fecha_ingesta: string
+          hash_sha256: string
           id: string
+          metadatos_json: Json | null
+          mime_type: string
           nombre_archivo: string
           ruta_storage: string
           ruta_thumb: string | null
-          hash_sha256: string
-          tamano_bytes: number
-          mime_type: string
-          fecha_captura: string | null
-          fecha_ingesta: string
-          estado: 'pendiente' | 'vinculada' | 'archivada' | 'error'
-          metadatos_json: Json | null
           subido_por: string | null
+          tamano_bytes: number
         }
         Insert: {
+          estado?: string
+          fecha_captura?: string | null
+          fecha_ingesta?: string
+          hash_sha256: string
           id?: string
+          metadatos_json?: Json | null
+          mime_type: string
           nombre_archivo: string
           ruta_storage: string
           ruta_thumb?: string | null
-          hash_sha256: string
-          tamano_bytes: number
-          mime_type: string
-          fecha_captura?: string | null
-          fecha_ingesta?: string
-          estado?: 'pendiente' | 'vinculada' | 'archivada' | 'error'
-          metadatos_json?: Json | null
           subido_por?: string | null
+          tamano_bytes: number
         }
         Update: {
+          estado?: string
+          fecha_captura?: string | null
+          fecha_ingesta?: string
+          hash_sha256?: string
           id?: string
+          metadatos_json?: Json | null
+          mime_type?: string
           nombre_archivo?: string
           ruta_storage?: string
           ruta_thumb?: string | null
-          hash_sha256?: string
-          tamano_bytes?: number
-          mime_type?: string
-          fecha_captura?: string | null
-          fecha_ingesta?: string
-          estado?: 'pendiente' | 'vinculada' | 'archivada' | 'error'
-          metadatos_json?: Json | null
           subido_por?: string | null
+          tamano_bytes?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "evidencias_subido_por_fkey"
-            columns: ["subido_por"]
-            isOneToOne: false
-            referencedRelation: "perfiles"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       identificaciones: {
         Row: {
-          evidencia_id: string
-          apellido_paterno: string
           apellido_materno: string
-          nombres: string
+          apellido_paterno: string
           cargo: string | null
-          texto_crudo_ocr: string | null
-          nivel_confianza: number | null
+          confirmado_en: string
           confirmado_por: string | null
           confirmador_email: string | null
-          confirmado_en: string
+          evidencia_id: string
+          nivel_confianza: number | null
+          nombres: string
+          texto_crudo_ocr: string | null
         }
         Insert: {
-          evidencia_id: string
-          apellido_paterno: string
           apellido_materno: string
-          nombres: string
+          apellido_paterno: string
           cargo?: string | null
-          texto_crudo_ocr?: string | null
-          nivel_confianza?: number | null
+          confirmado_en?: string
           confirmado_por?: string | null
           confirmador_email?: string | null
-          confirmado_en?: string
+          evidencia_id: string
+          nivel_confianza?: number | null
+          nombres: string
+          texto_crudo_ocr?: string | null
         }
         Update: {
-          evidencia_id?: string
-          apellido_paterno?: string
           apellido_materno?: string
-          nombres?: string
+          apellido_paterno?: string
           cargo?: string | null
-          texto_crudo_ocr?: string | null
-          nivel_confianza?: number | null
+          confirmado_en?: string
           confirmado_por?: string | null
           confirmador_email?: string | null
-          confirmado_en?: string
+          evidencia_id?: string
+          nivel_confianza?: number | null
+          nombres?: string
+          texto_crudo_ocr?: string | null
         }
         Relationships: [
           {
@@ -229,93 +185,111 @@ export type Database = {
             referencedRelation: "evidencias"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "identificaciones_confirmado_por_fkey"
-            columns: ["confirmado_por"]
-            isOneToOne: false
-            referencedRelation: "perfiles"
-            referencedColumns: ["id"]
-          }
         ]
+      }
+      perfiles: {
+        Row: {
+          actualizado_en: string
+          cargo: string
+          creado_en: string
+          id: string
+          nombres_completos: string
+          rol: string
+          telefono: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          cargo?: string
+          creado_en?: string
+          id: string
+          nombres_completos: string
+          rol?: string
+          telefono?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          cargo?: string
+          creado_en?: string
+          id?: string
+          nombres_completos?: string
+          rol?: string
+          telefono?: string | null
+        }
+        Relationships: []
       }
       vinculos: {
         Row: {
           actividad_id: string
           evidencia_id: string
           notas: string | null
+          rol_evidencia: string
           vinculado_en: string
           vinculado_por: string | null
         }
-            Insert: {
-              actividad_id: string
-              evidencia_id: string
-              notas?: string | null
-              vinculado_en?: string
-              vinculado_por?: string | null
-            }
-            Update: {
-              actividad_id?: string
-              evidencia_id?: string
-              notas?: string | null
-              vinculado_en?: string
-              vinculado_por?: string | null
-            }
-            Relationships: [
-              {
-                foreignKeyName: "vinculos_actividad_id_fkey"
-                columns: ["actividad_id"]
-                isOneToOne: false
-                referencedRelation: "actividades"
-                referencedColumns: ["id"]
-              },
-              {
-                foreignKeyName: "vinculos_evidencia_id_fkey"
-                columns: ["evidencia_id"]
-                isOneToOne: true
-                referencedRelation: "evidencias"
-                referencedColumns: ["id"]
-              },
-              {
-                foreignKeyName: "vinculos_vinculado_por_fkey"
-                columns: ["vinculado_por"]
-                isOneToOne: false
-                referencedRelation: "perfiles"
-                referencedColumns: ["id"]
-              }
-            ]
-          }
+        Insert: {
+          actividad_id: string
+          evidencia_id: string
+          notas?: string | null
+          rol_evidencia?: string
+          vinculado_en?: string
+          vinculado_por?: string | null
+        }
+        Update: {
+          actividad_id?: string
+          evidencia_id?: string
+          notas?: string | null
+          rol_evidencia?: string
+          vinculado_en?: string
+          vinculado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinculos_actividad_id_fkey"
+            columns: ["actividad_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vinculos_evidencia_id_fkey"
+            columns: ["evidencia_id"]
+            isOneToOne: false
+            referencedRelation: "evidencias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
+    }
     Views: {
       [_ in never]: never
     }
     Functions: {
       guardar_actividad_hse_completa: {
         Args: {
-          p_id?: string | null
-          p_datos_generales?: Json
           p_datos_formato_json?: Json
-          p_estado_reporte?: string | null
+          p_datos_generales?: Json
+          p_estado_reporte?: string
+          p_id?: string
         }
         Returns: Json
       }
-      vincular_evidencia_atomica:
-        | {
-            Args: {
-              p_actividad_id: string
-              p_evidencia_id: string
-              p_notas?: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              p_actividad_id: string
-              p_evidencia_id: string
-              p_notas?: string
-              p_revisor: string
-            }
-            Returns: boolean
-          }
+      vincular_evidencia_atomica: {
+        Args: {
+          p_actividad_id: string
+          p_evidencia_id: string
+          p_notas?: string
+          p_rol_evidencia?: string
+        }
+        Returns: boolean
+      }
+      vincular_multiples_evidencias: {
+        Args: {
+          p_actividad_id: string
+          p_evidencia_ids: string[]
+          p_rol_evidencia?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

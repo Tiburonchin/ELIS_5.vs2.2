@@ -136,12 +136,18 @@ export class ActivityService extends BaseSupabaseService<
   /**
    * Vincula atómicamente una evidencia a esta actividad mediante el RPC de Supabase
    */
-  async vincularEvidencia(evidenciaId: string, actividadId: string, notas?: string): Promise<boolean> {
+  async vincularEvidencia(
+    evidenciaId: string,
+    actividadId: string,
+    notas?: string,
+    rolEvidencia: 'hallazgo' | 'correccion' | 'fotocheck' | 'whatsapp_captura' | 'general' = 'hallazgo'
+  ): Promise<boolean> {
     try {
       const { data, error } = await supabase.rpc('vincular_evidencia_atomica', {
         p_evidencia_id: evidenciaId,
         p_actividad_id: actividadId,
         p_notas: notas,
+        p_rol_evidencia: rolEvidencia,
       });
 
       if (error) {
@@ -151,6 +157,40 @@ export class ActivityService extends BaseSupabaseService<
       return Boolean(data);
     } catch (error) {
       console.error('[ActivityService] Error en RPC vincular_evidencia_atomica:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Vincula atómicamente un lote de evidencias en una sola transacción ACID
+   */
+  async vincularMultiplesEvidencias(
+    evidenciaIds: string[],
+    actividadId: string,
+    rolEvidencia: 'hallazgo' | 'correccion' | 'fotocheck' | 'whatsapp_captura' | 'general' = 'hallazgo'
+  ): Promise<{ success: boolean; vinculados_count: number }> {
+    try {
+      if (!evidenciaIds || evidenciaIds.length === 0) {
+        return { success: true, vinculados_count: 0 };
+      }
+
+      const { data, error } = await supabase.rpc('vincular_multiples_evidencias', {
+        p_evidencia_ids: evidenciaIds,
+        p_actividad_id: actividadId,
+        p_rol_evidencia: rolEvidencia,
+      });
+
+      if (error) {
+        this.handleDatabaseError(error, 'rpc vincular_multiples_evidencias');
+      }
+
+      const res = data as { success?: boolean; vinculados_count?: number } | null;
+      return {
+        success: Boolean(res?.success),
+        vinculados_count: res?.vinculados_count ?? evidenciaIds.length,
+      };
+    } catch (error) {
+      console.error('[ActivityService] Error en RPC vincular_multiples_evidencias:', error);
       throw error;
     }
   }
@@ -250,7 +290,7 @@ export class ActivityService extends BaseSupabaseService<
           p_id: actividadId,
           p_datos_generales: (camposGenerales as Json) || ({} as Json),
           p_datos_formato_json: (datosFormatoJson as unknown as Json) || ({} as Json),
-          p_estado_reporte: estadoReporte || null,
+          p_estado_reporte: estadoReporte || undefined,
         });
 
         if (error) {

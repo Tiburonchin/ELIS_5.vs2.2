@@ -32,7 +32,9 @@ import {
   TableProperties,
   Edit2,
   CloudCheck,
+  Sparkles,
 } from 'lucide-react';
+import { SmartReportGeneratorModal } from '../components/reports/SmartReportGeneratorModal';
 import { toast } from 'sonner';
 
 export interface ActivitiesManagerProps {
@@ -48,6 +50,9 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
   // Estados del modal de Crear / Editar
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingActivity, setEditingActivity] = useState<ActividadRow | null>(null);
+
+  // Estado del Asistente Generador Inteligente desde WhatsApp / Fotos
+  const [isSmartModalOpen, setIsSmartModalOpen] = useState<boolean>(false);
 
   // Campos del formulario con tipos estrictos alineados a Database['public']['Tables']['actividades']
   const [formData, setFormData] = useState<{
@@ -177,12 +182,12 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     const mot = datosHse.motivo_amonestacion || {};
     setFormData({
       codigo_referencia: act.codigo_referencia,
-      tipo_actividad: act.tipo_actividad,
+      tipo_actividad: (act.tipo_actividad as 'INSPECCION' | 'CAPACITACION' | 'AUDITORIA' | 'AMONESTACION') || 'INSPECCION',
       ubicacion: act.ubicacion,
       fecha_operacion: act.fecha_operacion ? act.fecha_operacion.split('T')[0] : '',
       responsable_nombre: act.responsable_nombre,
       descripcion: act.descripcion || '',
-      estado_reporte: act.estado_reporte,
+      estado_reporte: (act.estado_reporte as 'pendiente' | 'exportada' | 'publicada') || 'pendiente',
       amonestado_nombre: amon.apellidos_nombres || '',
       amonestado_dni: amon.dni || '',
       amonestado_cargo: amon.cargo || '',
@@ -379,6 +384,17 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
                 <LayoutGrid className="h-4 w-4" />
               </button>
             </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsSmartModalOpen(true)}
+              className="gap-1.5 cursor-pointer border-amber-500/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold"
+              title="Generar automáticamente informe pre-llenado desde captura de WhatsApp o lote de fotos con OCR"
+            >
+              <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+              <span className="hidden sm:inline">Generar Informe desde</span> Captura WhatsApp / Fotos
+            </Button>
 
             <Button
               type="button"
@@ -902,6 +918,18 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
           </div>
         </form>
       </Modal>
+
+      {/* Asistente Visual Inteligente desde WhatsApp / Fotos */}
+      <SmartReportGeneratorModal
+        isOpen={isSmartModalOpen}
+        onClose={() => setIsSmartModalOpen(false)}
+        onActivityCreated={(created) => {
+          setActivities((prev) => [created, ...prev]);
+          if (onSelectActivity) {
+            onSelectActivity(created);
+          }
+        }}
+      />
     </div>
   );
 };

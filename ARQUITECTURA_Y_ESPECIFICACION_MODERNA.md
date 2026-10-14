@@ -823,22 +823,28 @@ frontend/
 
 ## 7. Plan de Refactorización Integral por Módulos (Hoja de Ruta)
 
-Para mantener la estabilidad absoluta del sistema, la evolución de ELIS 5.0 se articula en 4 fases ejecutivas:
-
-* **[EN PROGRESO] Módulo 7: Refactorización de Base de Datos y Seguridad RLS (Supabase Cloud)**
+* **[COMPLETADO] Módulo 7: Refactorización de Base de Datos y Seguridad RLS (Supabase Cloud)**
   - Creación de tabla `public.perfiles` con clave foránea a `auth.users(id)` y trigger `trg_on_auth_user_created`.
   - Ampliación de `public.actividades` (`tipo_actividad` ampliado a `AMONESTACION`, columna `datos_formato_json`).
   - Activación estricta de RLS en las 6 tablas y políticas `:ro` en el bucket `evidencias` bloqueando acceso anónimo.
-* **[PENDIENTE] Módulo 8: Refactorización de Backend/Servicios y Flujo de Autenticación**
+* **[COMPLETADO] Módulo 8: Refactorización de Backend/Servicios y Flujo de Autenticación**
   - Regeneración de `database.types.ts` con el esquema en la nube actualizado.
   - Creación de `AuthService.ts` y hook reactivo `useAuth.ts`.
   - Refactorización de `BaseSupabaseService`, `EvidenceService`, `ActivityService` y `OcrService` para inyectar automáticamente `auth.uid()`, validar sesiones activas y atrapar errores RLS.
-* **[PENDIENTE] Módulo 9: Refactorización de UI — Login Corporativo, Guardia de Rutas y Formatos HSE**
+* **[COMPLETADO] Módulo 9: Refactorización de UI — Login Corporativo, Guardia de Rutas y Formatos HSE**
   - Creación de pantalla corporativa `<LoginPage />` con shadcn/ui.
   - Protección de rutas con `<ProtectedRoute />` en `App.tsx`.
   - Inserción de perfil de inspector activo y botón de Cerrar Sesión en `DashboardLayout.tsx` y `AppSidebar.tsx`.
   - Formularios y plantillas PDF para Inspección HSE (Checklist 15 secciones) y Registro de Amonestación (HSE-EL-F-128).
-* **[PENDIENTE] Módulo 10: Asistente Interactivo Orbe (Voz) y Suite de Auditoría Integral**
+* **[COMPLETADO] Módulo 10: Asistente Interactivo Orbe (Voz) y Suite de Auditoría Integral**
   - Componente interactivo `<DataNodeOrb />` con animaciones Framer Motion y Web Speech API `es-PE`.
   - Integración de dictado directo en formularios de campo HSE.
   - Pruebas unitarias en Vitest para Auth, Servicios, Triggers de Auditoría y Flujos de Voz.
+* **[COMPLETADO] Módulo 11: Ingesta Multi-Archivo, Biblioteca Reutilizable N:M y Generador Inteligente desde WhatsApp**
+  - Migración PostgreSQL `20261014_modulo11_reutilizacion_evidencias_nm.sql` con Primary Key compuesta `(evidencia_id, actividad_id)` y columna `rol_evidencia`.
+  - RPCs atómicas `guardar_actividad_hse_completa` y `vincular_multiples_evidencias`.
+  - Subida múltiple simultánea con control de concurrencia y deduplicación SHA-256 en `<EvidenceUploader />`.
+  - Modal selector `<EvidenceLibraryPickerModal />` para vincular evidencias históricas a nuevos informes.
+  - Motor de análisis heurístico local `whatsappReportParser.ts` con OCR textual tesseract.js y detección de sellos de cámaras Timestamp / GPS Map Camera.
+  - Asistente visual `<SmartReportGeneratorModal />` en `ActivitiesManager` e `InboxEvidences` para generación inteligente de informes HSE-EL-F-120 y HSE-EL-F-128 bajo confirmación Human-in-the-Loop.
+  - Botón de autocompletado instantáneo en `ActivityDetail.tsx` para reciclar datos OCR de imágenes pre-procesadas sin re-ejecutar el worker.

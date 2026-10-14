@@ -105,4 +105,77 @@ describe('EvidenceUploader Component', () => {
     // No debe haber alerta de duplicado
     expect(screen.queryByText(/Evidencia Duplicada Detectada/i)).not.toBeInTheDocument();
   });
+
+  it('procesa múltiples archivos a la vez, emitiendo onBatchUploadSuccess y mostrando badge de duplicado', async () => {
+    const onBatchUploadSuccess = vi.fn();
+    const onUploadSuccess = vi.fn();
+    const file1 = new File(['f1'], 'batch_foto1.jpg', { type: 'image/jpeg' });
+    const file2 = new File(['f2'], 'batch_foto2.jpg', { type: 'image/jpeg' });
+
+    const res1 = {
+      isDuplicate: false,
+      hash: 'hash-111',
+      evidence: {
+        id: 'evi-batch-1',
+        nombre_archivo: 'batch_foto1.jpg',
+        ruta_storage: 'originals/batch_foto1.jpg',
+        ruta_thumb: 'thumbs/batch_foto1_thumb.webp',
+        hash_sha256: 'hash-111',
+        tamano_bytes: 2048,
+        mime_type: 'image/jpeg',
+        fecha_captura: '2026-10-13T12:00:00.000Z',
+        fecha_ingesta: '2026-10-13T12:05:00.000Z',
+        estado: 'pendiente' as const,
+        metadatos_json: null,
+        subido_por: null,
+      },
+    };
+    const res2 = {
+      isDuplicate: true,
+      hash: 'hash-222',
+      evidence: {
+        id: 'evi-batch-2',
+        nombre_archivo: 'batch_foto2.jpg',
+        ruta_storage: 'originals/batch_foto2.jpg',
+        ruta_thumb: 'thumbs/batch_foto2_thumb.webp',
+        hash_sha256: 'hash-222',
+        tamano_bytes: 2048,
+        mime_type: 'image/jpeg',
+        fecha_captura: '2026-10-13T12:00:00.000Z',
+        fecha_ingesta: '2026-10-13T12:05:00.000Z',
+        estado: 'pendiente' as const,
+        metadatos_json: null,
+        subido_por: null,
+      },
+    };
+
+    vi.mocked(evidenceService.uploadAndRegisterEvidence)
+      .mockResolvedValueOnce(res1)
+      .mockResolvedValueOnce(res2);
+
+    const { container } = render(
+      <EvidenceUploader onUploadSuccess={onUploadSuccess} onBatchUploadSuccess={onBatchUploadSuccess} />
+    );
+
+    const fileInput = container.querySelector('input[type="file"]:not([capture])') as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [file1, file2],
+      },
+    });
+
+    await waitFor(() => {
+      expect(evidenceService.uploadAndRegisterEvidence).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(onUploadSuccess).toHaveBeenCalledWith(res1);
+      expect(onBatchUploadSuccess).toHaveBeenCalledWith([res1, res2]);
+    });
+
+    // Validar que se hayan renderizado los nombres de los archivos en la lista procesada
+    expect(screen.getByText('batch_foto1.jpg')).toBeInTheDocument();
+    expect(screen.getByText('batch_foto2.jpg')).toBeInTheDocument();
+    expect(screen.getByText(/Cola de Procesamiento/i)).toBeInTheDocument();
+  });
 });
