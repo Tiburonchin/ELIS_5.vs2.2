@@ -75,7 +75,9 @@ export class ActivityService extends BaseSupabaseService<
       return [];
     }
 
-    const evidenciaIds = vinculos.map((v) => v.evidencia_id);
+    const evidenciaIds = (vinculos as Database['public']['Tables']['vinculos']['Row'][]).map(
+      (v: Database['public']['Tables']['vinculos']['Row']) => v.evidencia_id
+    );
 
     // 2. Consultar las evidencias correspondientes
     const { data: evidencias, error: evidenciasError } = await supabase
@@ -98,11 +100,18 @@ export class ActivityService extends BaseSupabaseService<
       console.warn('[ActivityService] Advertencia consultando identificaciones OCR:', ocrError);
     }
 
-    const evidenciasMap = new Map((evidencias || []).map((e) => [e.id, e]));
-    const identMap = new Map((identificaciones || []).map((i) => [i.evidencia_id, i]));
+    const typedEvidencias = (evidencias || []) as Database['public']['Tables']['evidencias']['Row'][];
+    const typedIdentificaciones = (identificaciones || []) as Database['public']['Tables']['identificaciones']['Row'][];
 
-    return vinculos
-      .map((v) => {
+    const evidenciasMap = new Map<string, Database['public']['Tables']['evidencias']['Row']>(
+      typedEvidencias.map((e: Database['public']['Tables']['evidencias']['Row']) => [e.id, e])
+    );
+    const identMap = new Map<string, Database['public']['Tables']['identificaciones']['Row']>(
+      typedIdentificaciones.map((i: Database['public']['Tables']['identificaciones']['Row']) => [i.evidencia_id, i])
+    );
+
+    return (vinculos as Database['public']['Tables']['vinculos']['Row'][])
+      .map((v: Database['public']['Tables']['vinculos']['Row']) => {
         const ev = evidenciasMap.get(v.evidencia_id);
         if (!ev) return null;
         return {
