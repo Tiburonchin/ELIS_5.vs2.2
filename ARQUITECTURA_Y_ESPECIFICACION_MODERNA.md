@@ -117,6 +117,23 @@ Para este stack Cloud-Native, Antigravity opera con 2 servidores MCP complementa
 
 ---
 
+### 2.4 Ecosistema de Agentes, Cursor Rules y Skills Especializadas
+Para mantener un desarrollo estructurado, limpio y sin degradación de contexto, el comportamiento de los asistentes (Antigravity y Cursor) se rige por un catálogo modular de reglas:
+
+1. **Estructura en `.agents/rules/` y `.cursor/rules/`:**
+   * `01-elis-core-rules.md`: Reglas inmutables de negocio (protección del bucket `:ro`, gobernanza *Human-in-the-Loop*, deduplicación SHA-256 obligatoria y consulta previa a Graphify).
+   * `02-backend-reusability.md`: Patrones TypeScript POO (`BaseSupabaseService<T>`) y operaciones atómicas multi-tabla delegadas a funciones `RPC`.
+   * `03-frontend-components.md`: PWA Mobile-First, componentes atómicos Tailwind, Web Workers para OCR y `@supabase/supabase-js`.
+   * `04-supabase-postgres-best-practices.md`: Seguridad RLS, `SECURITY DEFINER` en triggers de auditoría e indexación eficiente.
+   * `graphify.md`: Verificación automática del grafo de conocimiento antes de crear código nuevo.
+
+2. **Skills y Reglas de Repositorios Especializados:**
+   * **`nextjs-supabase` / `react-supabase` (de `PatrickJS/awesome-cursorrules`):** Buenas prácticas de consumo de `@supabase/supabase-js`, manejo de sesiones reactivas y tipado estricto.
+   * **`supabase-postgres-best-practices` (de `guanyang/antigravity-skills`):** Guías oficiales de optimización de Postgres, consultas no bloqueantes y seguridad de políticas RLS.
+   * **`typescript-clean-code` & `tailwindcss-ui-patterns` (de `omer-metin/skills-for-antigravity`):** Código limpio, desacoplamiento en Custom Hooks y diseño visual moderno.
+
+---
+
 ## 3. Modelo de Datos Relacional y Auditoría Inmutable (PostgreSQL / Supabase)
 
 ### 3.1 Diagrama de Entidad-Relación
@@ -188,58 +205,169 @@ erDiagram
     }
 ```
 
-### 3.2 Script DDL y Trigger Inmutable de Auditoría en PostgreSQL
+### 3.2 Script DDL y Trigger Inmutable de Auditoría en PostgreSQL (Normalizado)
+
 ```sql
 -- Habilitar extensión UUID
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Tabla de Auditoría Inmutable
+-- 1. TABLA DE EVIDENCIAS (Inmutable por diseño y deduplicada)
+CREATE TABLE IF NOT EXISTS public.evidencias (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre_archivo TEXT NOT NULL,
+    ruta_storage TEXT NOT NULL,
+    ruta_thumb TEXT,
+    hash_sha256 CHAR(64) NOT NULL UNIQUE,
+    tamano_bytes BIGINT NOT NULL,
+    mime_type TEXT NOT NULL,
+    fecha_captura TIMESTAMPTZ,
+    fecha_ingesta TIMESTAMPTZ NOT NULL DEFAULT now(),
+    estado TEXT NOT NULL DEFAULT 'pendiente' 
+        CHECK (estado IN ('pendiente', 'vinculada', 'archivada', 'error')),
+    metadatos_json JSONB DEFAULT '{}'::jsonb,
+    subido_por UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
+
+-- 2. TABLA DE IDENTIFICACIONES (OCR validado por humano 1:1)
+CREATE TABLE IF NOT EXISTS public.identificaciones (
+    evidencia_id UUID PRIMARY KEY REFERENCES public.evidencias(id) ON DELETE RESTRICT,
+    apellido_paterno TEXT NOT NULL,
+    apellido_materno TEXT NOT NULL,
+    nombres TEXT NOT NULL,
+    cargo TEXT,
+    texto_crudo_ocr TEXT,
+    nivel_confianza REAL CHECK (nivel_confianza >= 0.0 AND nivel_confianza <= 1.0),
+    confirmado_por UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    confirmador_email TEXT,
+    confirmado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 3. TABLA DE ACTIVIDADES (Inspecciones y Auditorías)
+CREATE TABLE IF NOT EXISTS public.actividades (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_referencia TEXT NOT NULL UNIQUE,
+    tipo_actividad TEXT NOT NULL 
+        CHECK (tipo_actividad IN ('INSPECCION', 'CAPACITACION', 'AUDITORIA')),
+    fecha_operacion DATE NOT NULL,
+    responsable_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    responsable_nombre TEXT NOT NULL,
+    ubicacion TEXT NOT NULL,
+    descripcion TEXT,
+    estado_reporte TEXT NOT NULL DEFAULT 'pendiente' 
+        CHECK (estado_reporte IN ('pendiente', 'exportada', 'publicada')),
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 4. TABLA DE VÍNCULOS (Garantiza 1 evidencia = 1 actividad)
+CREATE TABLE IF NOT EXISTS public.vinculos (
+    evidencia_id UUID PRIMARY KEY REFERENCES public.evidencias(id) ON DELETE RESTRICT,
+    actividad_id UUID NOT NULL REFERENCES public.actividades(id) ON DELETE RESTRICT,
+    vinculado_por UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    vinculado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+    notas TEXT
+);
+
+-- 5. TABLA DE AUDITORÍA UNIVERSAL E INMUTABLE
 CREATE TABLE IF NOT EXISTS public.auditoria (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     operacion TEXT NOT NULL,
     tabla TEXT NOT NULL,
     entidad_id TEXT NOT NULL,
-    usuario_id UUID,
-    estado_anterior JSONB,
-    estado_nuevo JSONB,
-    creado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+    usuario_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    usuario_email TEXT DEFAULT COALESCE(current_setting('request.jwt.claims', true)::json->>'email', 'sistema'),
+    payload_anterior JSONB,
+    payload_nuevo JSONB,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Función del Trigger de Auditoría Universal
-CREATE OR REPLACE FUNCTION public.fn_audit_trigger()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.auditoria (
-        operacion,
-        tabla,
-        entidad_id,
-        usuario_id,
-        estado_anterior,
-        estado_nuevo
-    ) VALUES (
-        TG_OP,
-        TG_TABLE_NAME,
-        COALESCE(NEW.id::TEXT, OLD.id::TEXT, NEW.evidencia_id::TEXT, OLD.evidencia_id::TEXT),
-        auth.uid(),
-        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
-        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END
-    );
-    RETURN COALESCE(NEW, OLD);
-END;
+-- ÍNDICES DE ALTA VELOCIDAD
+CREATE INDEX IF NOT EXISTS idx_evidencias_estado ON public.evidencias(estado);
+CREATE INDEX IF NOT EXISTS idx_evidencias_fecha ON public.evidencias(fecha_ingesta DESC);
+CREATE INDEX IF NOT EXISTS idx_evidencias_subido_por ON public.evidencias(subido_por);
+CREATE INDEX IF NOT EXISTS idx_vinculos_actividad ON public.vinculos(actividad_id);
+CREATE INDEX IF NOT EXISTS idx_auditoria_entidad ON public.auditoria(tabla, entidad_id);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON public.auditoria(creado_en DESC);
+
+-- TRIGGER UNIVERSAL DE AUDITORÍA
+CREATE OR REPLACE FUNCTION public.fn_registrar_auditoria_universal() 
+RETURNS TRIGGER AS $$ 
+DECLARE
+    v_id TEXT;
+    v_user_id UUID;
+    v_user_email TEXT;
+BEGIN 
+    IF (TG_TABLE_NAME = 'vinculos' OR TG_TABLE_NAME = 'identificaciones') THEN
+        v_id := COALESCE(NEW.evidencia_id::TEXT, OLD.evidencia_id::TEXT);
+    ELSE
+        v_id := COALESCE(NEW.id::TEXT, OLD.id::TEXT);
+    END IF;
+
+    BEGIN
+        v_user_id := auth.uid();
+    EXCEPTION WHEN OTHERS THEN
+        v_user_id := NULL;
+    END;
+
+    BEGIN
+        v_user_email := COALESCE(current_setting('request.jwt.claims', true)::json->>'email', 'sistema');
+    EXCEPTION WHEN OTHERS THEN
+        v_user_email := 'sistema';
+    END;
+
+    IF (TG_OP = 'INSERT') THEN 
+        INSERT INTO public.auditoria (operacion, tabla, entidad_id, usuario_id, usuario_email, payload_anterior, payload_nuevo)
+        VALUES ('INSERT', TG_TABLE_NAME, v_id, v_user_id, v_user_email, NULL, to_jsonb(NEW));
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN 
+        INSERT INTO public.auditoria (operacion, tabla, entidad_id, usuario_id, usuario_email, payload_anterior, payload_nuevo)
+        VALUES ('UPDATE', TG_TABLE_NAME, v_id, v_user_id, v_user_email, to_jsonb(OLD), to_jsonb(NEW));
+        RETURN NEW;
+    ELSIF (TG_OP = 'DELETE') THEN 
+        INSERT INTO public.auditoria (operacion, tabla, entidad_id, usuario_id, usuario_email, payload_anterior, payload_nuevo)
+        VALUES ('DELETE', TG_TABLE_NAME, v_id, v_user_id, v_user_email, to_jsonb(OLD), NULL);
+        RETURN OLD;
+    END IF;
+    RETURN NULL; 
+END; 
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Disparadores automáticos en tablas maestras
-CREATE TRIGGER tr_audit_evidencias
-AFTER INSERT OR UPDATE OR DELETE ON public.evidencias
-FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger();
+-- Disparadores automáticos en las 4 tablas maestras
+DROP TRIGGER IF EXISTS trg_audit_evidencias ON public.evidencias;
+CREATE TRIGGER trg_audit_evidencias AFTER INSERT OR UPDATE OR DELETE ON public.evidencias FOR EACH ROW EXECUTE FUNCTION public.fn_registrar_auditoria_universal();
 
-CREATE TRIGGER tr_audit_actividades
-AFTER INSERT OR UPDATE OR DELETE ON public.actividades
-FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger();
+DROP TRIGGER IF EXISTS trg_audit_actividades ON public.actividades;
+CREATE TRIGGER trg_audit_actividades AFTER INSERT OR UPDATE OR DELETE ON public.actividades FOR EACH ROW EXECUTE FUNCTION public.fn_registrar_auditoria_universal();
 
-CREATE TRIGGER tr_audit_vinculos
-AFTER INSERT OR UPDATE OR DELETE ON public.vinculos
-FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger();
+DROP TRIGGER IF EXISTS trg_audit_identificaciones ON public.identificaciones;
+CREATE TRIGGER trg_audit_identificaciones AFTER INSERT OR UPDATE OR DELETE ON public.identificaciones FOR EACH ROW EXECUTE FUNCTION public.fn_registrar_auditoria_universal();
+
+DROP TRIGGER IF EXISTS trg_audit_vinculos ON public.vinculos;
+CREATE TRIGGER trg_audit_vinculos AFTER INSERT OR UPDATE OR DELETE ON public.vinculos FOR EACH ROW EXECUTE FUNCTION public.fn_registrar_auditoria_universal();
+
+-- FUNCIÓN RPC ATÓMICA
+CREATE OR REPLACE FUNCTION public.vincular_evidencia_atomica( 
+    p_evidencia_id UUID, 
+    p_actividad_id UUID, 
+    p_notas TEXT DEFAULT NULL 
+) 
+RETURNS BOOLEAN AS $$ 
+BEGIN 
+    UPDATE public.evidencias 
+    SET estado = 'vinculada' 
+    WHERE id = p_evidencia_id; 
+
+    INSERT INTO public.vinculos (evidencia_id, actividad_id, vinculado_por, notas) 
+    VALUES (p_evidencia_id, p_actividad_id, auth.uid(), p_notas) 
+    ON CONFLICT (evidencia_id) DO UPDATE 
+    SET actividad_id = EXCLUDED.actividad_id, 
+        vinculado_por = auth.uid(), 
+        notas = EXCLUDED.notas, 
+        vinculado_en = now(); 
+
+    RETURN TRUE; 
+END; 
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
 ## 4. Arquitectura de Software, Capas y Flujos Operativos
