@@ -120,6 +120,24 @@ VITE_SUPABASE_ANON_KEY="sb_publishable_6mfFgnK1h64UxjBmtK5A2A_rvLygOGC"
 
 ---
 
+## 🚀 Despliegue en Vercel
+
+Para desplegar la aplicación en Vercel:
+
+1. **Importar el repositorio:** Conecta tu repositorio de GitHub desde el panel de [Vercel](https://vercel.com).
+2. **Root Directory:** Si el frontend está en el subdirectorio `frontend`, configúralo como **Root Directory** en la configuración del proyecto en Vercel (o asegúrate de que el comando de compilación apunte a este).
+3. **Build & Output Settings:**
+   - **Framework Preset:** Vite
+   - **Build Command:** `npm run build` (`tsc -b && vite build`)
+   - **Output Directory:** `dist`
+4. **Variables de Entorno (Environment Variables):**
+   Configura manualmente en el panel de Vercel (**Settings** > **Environment Variables**) las siguientes claves:
+   - `VITE_SUPABASE_URL`: URL del proyecto de Supabase.
+   - `VITE_SUPABASE_ANON_KEY`: Llave pública anon/publishable de Supabase.
+5. **Enrutamiento SPA:** El archivo `vercel.json` en la raíz redirige automáticamente todas las rutas a `/index.html` para prevenir errores 404 al recargar páginas.
+
+---
+
 <div align="center">
 
 **ELIS 5.0 — Sistema de Inspección Inmutable &bull; Arquitectura Cloud-Native Supabase**  
