@@ -205,18 +205,18 @@ export const EvidenceLibraryPickerModal: React.FC<EvidenceLibraryPickerModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
-        <DialogHeader className="pb-2 border-b border-border">
+      <DialogContent className="sm:max-w-3xl lg:max-w-4xl w-[95vw] max-h-[88vh] flex flex-col p-0 overflow-hidden bg-card border-border/80 shadow-2xl">
+        <DialogHeader className="p-6 pb-4 border-b border-border/80 shrink-0 bg-card">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
                 <Library className="w-5 h-5" />
               </div>
-              <div>
-                <DialogTitle className="text-base sm:text-lg font-bold">
+              <div className="min-w-0">
+                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground truncate">
                   Biblioteca de Evidencias Reutilizables (Relación N:M)
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                   Selecciona fotos históricas o sube nuevas para vincularlas a este informe.
                 </DialogDescription>
               </div>
@@ -225,7 +225,7 @@ export const EvidenceLibraryPickerModal: React.FC<EvidenceLibraryPickerModalProp
         </DialogHeader>
 
         {/* Tabs: Biblioteca vs Subida Directa */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col min-h-0 mt-2">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col min-h-0 overflow-hidden p-6 pt-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
             <TabsList className="bg-muted/70 p-1 rounded-xl">
               <TabsTrigger value="library" className="text-xs px-3 py-1.5 gap-1.5">
@@ -443,7 +443,7 @@ export const EvidenceLibraryPickerModal: React.FC<EvidenceLibraryPickerModalProp
         </Tabs>
 
         {/* Footer con Acciones */}
-        <DialogFooter className="pt-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2">
+        <DialogFooter className="p-4 px-6 border-t border-border/80 bg-background shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 m-0 rounded-none">
           <div className="text-xs text-muted-foreground">
             {selectedIds.size > 0 ? (
               <span className="font-semibold text-primary">

@@ -224,13 +224,22 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl bg-card border-border/80 shadow-2xl">
-        <DialogHeader className="space-y-1 pb-2 border-b border-border/60">
+      <DialogContent className="sm:max-w-3xl lg:max-w-4xl w-[95vw] max-h-[88vh] flex flex-col p-0 overflow-hidden bg-card border-border/80 shadow-2xl">
+        <DialogHeader className="p-6 pb-4 border-b border-border/80 shrink-0 bg-card">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <span>Centro de Personalización &amp; Perfil</span>
-            </DialogTitle>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground truncate">
+                  Centro de Personalización &amp; Perfil
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Gestiona tu identidad para reportes oficiales, preferencias de interfaz y motor de voz.
+                </DialogDescription>
+              </div>
+            </div>
             <Badge
               variant="outline"
               className="text-[11px] uppercase tracking-wider font-semibold border-primary/30 bg-primary/10 text-primary"
@@ -238,13 +247,11 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               {rolBadge}
             </Badge>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Gestiona tu identidad para reportes oficiales, preferencias de interfaz y motor de voz.
-          </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue={defaultTab} className="w-full mt-2">
-          <TabsList className="h-auto flex flex-wrap sm:grid sm:grid-cols-3 w-full justify-start gap-1 p-1 bg-muted/60 rounded-xl mb-3">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-3">
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <TabsList className="h-auto flex flex-wrap sm:grid sm:grid-cols-3 w-full justify-start gap-1 p-1 bg-muted/60 rounded-xl mb-4">
             <TabsTrigger value="perfil" className="text-xs py-2 px-2.5 gap-1.5 cursor-pointer font-medium flex-1 sm:flex-initial">
               <User className="h-3.5 w-3.5" />
               <span>Firma HSE</span>
@@ -618,6 +625,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
             </div>
           </TabsContent>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

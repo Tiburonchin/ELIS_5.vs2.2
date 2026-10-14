@@ -100,6 +100,10 @@ export const App: React.FC = () => {
                   console.log('[App] Evidencia seleccionada:', evidence);
                 }}
                 onNotification={handleShowNotification}
+                onSelectActivity={(activity) => {
+                  setSelectedActivity(activity);
+                  setActiveTab('actividades');
+                }}
               />
             )}
           </Suspense>

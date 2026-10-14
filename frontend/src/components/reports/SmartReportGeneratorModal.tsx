@@ -37,9 +37,15 @@ import { activityService, type ActividadRow } from '../../services/ActivityServi
 import {
   PA_PERU_INFO,
   CATALOGO_F120,
+  MOTIVOS_AMONESTACION,
+  NIVELES_RIESGO,
+  SANCIONES_RISST,
   type FormatoInspeccionF120,
   type FormatoAmonestacionF128,
   type ItemEvaluado,
+  type MotivoAmonestacion,
+  type NivelRiesgoAmonestacion,
+  type SancionAmonestacion,
 } from '../../types/hseFormats';
 
 export interface SmartReportGeneratorModalProps {
@@ -81,6 +87,16 @@ export const SmartReportGeneratorModal: React.FC<SmartReportGeneratorModalProps>
   const [libraryUrlMap, setLibraryUrlMap] = useState<Record<string, string>>({});
   const [loadingLibrary, setLoadingLibrary] = useState<boolean>(false);
   const [searchLibrary, setSearchLibrary] = useState<string>('');
+
+  // Filtrado reactivo de la biblioteca de evidencias
+  const filteredLibrary = useMemo(() => {
+    const q = searchLibrary.toLowerCase().trim();
+    if (!q) return libraryEvidences;
+    return libraryEvidences.filter((e) =>
+      e.nombre_archivo.toLowerCase().includes(q) ||
+      (e.metadatos_json as any)?.ocr_extracted_data?.texto_crudo?.toLowerCase().includes(q)
+    );
+  }, [libraryEvidences, searchLibrary]);
 
   // Estado del OCR en lote
   const [, setIsProcessingOcr] = useState<boolean>(false);
@@ -436,415 +452,627 @@ export const SmartReportGeneratorModal: React.FC<SmartReportGeneratorModalProps>
     }
   };
 
-  // Filtrado de biblioteca
-  const filteredLibrary = useMemo(() => {
-    const q = searchLibrary.toLowerCase().trim();
-    if (!q) return libraryEvidences;
-    return libraryEvidences.filter((e) =>
-      e.nombre_archivo.toLowerCase().includes(q) ||
-      (e.metadatos_json as any)?.ocr_extracted_data?.texto_crudo?.toLowerCase().includes(q)
-    );
-  }, [libraryEvidences, searchLibrary]);
+  // Sincronización dinámica de tipo de informe
+  const handleFormatChange = (tipo: 'INSPECCION' | 'AMONESTACION') => {
+    setSelectedFormatType(tipo);
+    if (parsedData) {
+      // Actualizar el texto descriptivo de la actividad si contenía el valor por defecto
+      const actividadActual = parsedData.actividad.toUpperCase();
+      let nuevaActividad = parsedData.actividad;
+      if (tipo === 'INSPECCION' && (actividadActual.includes('AMONESTACIÓN') || actividadActual.includes('AMONESTACION') || actividadActual === '')) {
+        nuevaActividad = 'INSPECCIÓN DE CAMPO Y EVALUACIÓN HSE';
+      } else if (tipo === 'AMONESTACION' && (actividadActual.includes('INSPECCIÓN') || actividadActual.includes('INSPECCION') || actividadActual === '')) {
+        nuevaActividad = 'AMONESTACIÓN POR INCUMPLIMIENTO RISST';
+      }
+      setParsedData({
+        ...parsedData,
+        tipoReporteSugerido: tipo,
+        actividad: nuevaActividad,
+      });
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[92vh] flex flex-col p-4 sm:p-6 overflow-hidden">
-        {/* Cabecera del Modal */}
-        <DialogHeader className="pb-3 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-primary/10 text-primary">
-              <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+      <DialogContent className="sm:max-w-4xl lg:max-w-5xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card border-border/80 shadow-2xl">
+        {/* Cabecera Fija y Limpia */}
+        <DialogHeader className="p-6 pb-4 border-b border-border/80 shrink-0 bg-card">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+              <Sparkles className="w-5 h-5 animate-pulse" />
             </div>
-            <div>
-              <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
-                <span>Generar Informe desde WhatsApp / Lote de Fotos</span>
-                <Badge variant="outline" className="text-[10px] bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <DialogTitle className="text-base sm:text-lg lg:text-xl font-bold tracking-tight text-foreground truncate">
+                  Generador Inteligente desde WhatsApp / Lote de Fotos
+                </DialogTitle>
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-semibold bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400">
                   Human-in-the-Loop
                 </Badge>
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
+              </div>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5 line-clamp-1 sm:line-clamp-none">
                 Extrae datos mediante OCR de capturas de WhatsApp, fotochecks y sellos de fotos de campo, proponiendo el informe pre-llenado.
               </DialogDescription>
             </div>
           </div>
-
-          {/* Stepper Visual */}
-          <div className="flex items-center justify-between pt-3 text-xs font-semibold">
-            <div className={`flex items-center gap-1.5 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>1</span>
-              <span>Subir / Seleccionar</span>
-            </div>
-            <div className={`h-[1px] flex-1 mx-3 ${step >= 2 ? 'bg-primary' : 'bg-border'}`} />
-            <div className={`flex items-center gap-1.5 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>2</span>
-              <span>OCR &amp; Heurística</span>
-            </div>
-            <div className={`h-[1px] flex-1 mx-3 ${step >= 3 ? 'bg-primary' : 'bg-border'}`} />
-            <div className={`flex items-center gap-1.5 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>3</span>
-              <span>Validar &amp; Generar</span>
-            </div>
-          </div>
         </DialogHeader>
 
-        {/* ── PASO 1: SUBIR / SELECCIONAR IMÁGENES ───────────────────────────── */}
-        {step === 1 && (
-          <div className="flex-1 flex flex-col min-h-0 space-y-4 py-2">
-            <Tabs defaultValue="upload" className="flex-1 flex flex-col min-h-0">
-              <TabsList className="bg-muted/70 p-1 rounded-xl w-max">
-                <TabsTrigger value="upload" className="text-xs px-3 py-1.5 gap-1.5">
-                  <UploadCloud className="w-3.5 h-3.5" />
-                  <span>Subir Nuevas Fotos / Capturas</span>
-                </TabsTrigger>
-                <TabsTrigger value="library" className="text-xs px-3 py-1.5 gap-1.5">
-                  <Library className="w-3.5 h-3.5" />
-                  <span>Seleccionar de la Biblioteca ({libraryEvidences.length})</span>
-                </TabsTrigger>
-              </TabsList>
+        {/* Stepper Horizontal Espaciado */}
+        <div className="px-6 py-3 bg-muted/30 border-b border-border/60 shrink-0">
+          <div className="flex items-center justify-between text-xs font-semibold max-w-2xl mx-auto">
+            <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${step >= 1 ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted text-muted-foreground'}`}>
+                1
+              </span>
+              <span className="hidden sm:inline">Subir / Seleccionar</span>
+              <span className="sm:hidden">Fotos</span>
+            </div>
+            <div className={`h-[2px] flex-1 mx-3 rounded-full transition-colors ${step >= 2 ? 'bg-primary' : 'bg-border'}`} />
+            <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${step >= 2 ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted text-muted-foreground'}`}>
+                2
+              </span>
+              <span className="hidden sm:inline">OCR &amp; Heurística</span>
+              <span className="sm:hidden">OCR</span>
+            </div>
+            <div className={`h-[2px] flex-1 mx-3 rounded-full transition-colors ${step >= 3 ? 'bg-primary' : 'bg-border'}`} />
+            <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${step >= 3 ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted text-muted-foreground'}`}>
+                3
+              </span>
+              <span className="hidden sm:inline">Validar &amp; Generar</span>
+              <span className="sm:hidden">Validar</span>
+            </div>
+          </div>
+        </div>
 
-              {/* Subpestaña: Subida Local */}
-              <TabsContent value="upload" className="flex-1 flex flex-col justify-center py-4">
-                <label className="border-2 border-dashed border-border hover:border-primary/60 rounded-2xl p-6 sm:p-10 flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/10 hover:bg-muted/20">
-                  <UploadCloud className="w-10 h-10 text-muted-foreground mb-3" />
-                  <span className="font-bold text-sm text-foreground">
-                    Haz clic para seleccionar imágenes o capturas
-                  </span>
-                  <span className="text-xs text-muted-foreground mt-1 text-center max-w-md">
-                    Puedes subir simultáneamente la captura de WhatsApp del reporte + fotos del hallazgo + fotocheck del trabajador.
-                  </span>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleFilesSelected}
-                    className="hidden"
+        {/* Cuerpo Scrollable Vertical (CERO Scroll Horizontal) */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6">
+          {/* ── PASO 1: SUBIR / SELECCIONAR IMÁGENES ───────────────────────────── */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <Tabs defaultValue="upload" className="w-full flex flex-col min-h-0">
+                <TabsList className="bg-muted/70 p-1 rounded-xl w-full sm:w-max grid grid-cols-2 sm:flex">
+                  <TabsTrigger value="upload" className="text-xs px-3 py-1.5 gap-1.5 cursor-pointer">
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>Subir Nuevas Fotos</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="library" className="text-xs px-3 py-1.5 gap-1.5 cursor-pointer">
+                    <Library className="w-3.5 h-3.5" />
+                    <span>Biblioteca ({libraryEvidences.length})</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Subpestaña: Subida Local */}
+                <TabsContent value="upload" className="pt-4">
+                  <label className="border-2 border-dashed border-border/80 hover:border-primary/60 rounded-2xl p-8 sm:p-12 flex flex-col items-center justify-center cursor-pointer transition-all bg-muted/10 hover:bg-muted/20 text-center">
+                    <div className="p-3 rounded-2xl bg-primary/10 text-primary mb-3">
+                      <UploadCloud className="w-8 h-8" />
+                    </div>
+                    <span className="font-bold text-sm sm:text-base text-foreground">
+                      Haz clic para seleccionar imágenes o capturas
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-1.5 max-w-lg">
+                      Puedes subir simultáneamente la captura de WhatsApp del reporte + fotos del hallazgo + fotocheck del trabajador.
+                    </span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFilesSelected}
+                      className="hidden"
+                    />
+                  </label>
+                </TabsContent>
+
+                {/* Subpestaña: Biblioteca Reutilizable */}
+                <TabsContent value="library" className="space-y-3 pt-3">
+                  <Input
+                    placeholder="Buscar en biblioteca por nombre de archivo o texto OCR..."
+                    value={searchLibrary}
+                    onChange={(e) => setSearchLibrary(e.target.value)}
+                    className="h-9 text-xs"
                   />
+                  <div className="min-h-[220px] max-h-[340px] overflow-y-auto pr-1">
+                    {loadingLibrary ? (
+                      <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin mr-2 text-primary" />
+                        Cargando biblioteca de evidencias...
+                      </div>
+                    ) : filteredLibrary.length === 0 ? (
+                      <div className="text-center py-12 text-xs text-muted-foreground">
+                        No hay imágenes disponibles en la biblioteca.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {filteredLibrary.map((ev) => {
+                          const isSelected = selectedItems.some((it) => it.evidence?.id === ev.id);
+                          return (
+                            <div
+                              key={ev.id}
+                              onClick={() => toggleSelectLibraryEvidence(ev)}
+                              className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${
+                                isSelected
+                                  ? 'border-primary bg-primary/10 ring-2 ring-primary/20 shadow-xs'
+                                  : 'border-border bg-card hover:border-foreground/30 hover:shadow-xs'
+                              }`}
+                            >
+                              <img
+                                src={libraryUrlMap[ev.id]}
+                                alt={ev.nombre_archivo}
+                                className="w-full h-24 object-cover rounded-lg bg-muted"
+                              />
+                              <span className="text-[11px] font-medium truncate" title={ev.nombre_archivo}>
+                                {ev.nombre_archivo}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Lista de Imágenes Seleccionadas */}
+              {selectedItems.length > 0 && (
+                <div className="p-4 rounded-xl border border-border bg-card space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-foreground">Lote de imágenes para procesar ({selectedItems.length}):</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedItems([])}
+                      className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+                    >
+                      Limpiar todo
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                    {selectedItems.map((item) => (
+                      <div key={item.id} className="relative group shrink-0 w-24">
+                        <img
+                          src={item.previewUrl}
+                          alt={item.name}
+                          className="w-24 h-24 object-cover rounded-xl border border-border/80 shadow-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeSelectedItem(item.id)}
+                          className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                          title="Quitar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-[10px] block truncate text-muted-foreground mt-1" title={item.name}>
+                          {item.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── PASO 2: PROCESAMIENTO OCR EN VIVO ─────────────────────────────── */}
+          {step === 2 && (
+            <div className="max-w-xl mx-auto space-y-5 py-6">
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                  <Loader2 className="w-7 h-7 animate-spin text-primary" />
+                </div>
+                <h3 className="text-base font-bold text-foreground">
+                  Procesando Lote de Imágenes con Tesseract.js (spa)
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Extrayendo texto de capturas de WhatsApp, credenciales fotocheck y sellos GPS de fotos de campo...
+                </p>
+              </div>
+
+              <Progress value={globalProgress} className="h-2 rounded-full" />
+
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {selectedItems.map((item) => (
+                  <div key={item.id} className="p-3 rounded-xl border border-border bg-card flex items-center justify-between text-xs shadow-xs">
+                    <div className="flex items-center gap-3 truncate max-w-[320px]">
+                      <img src={item.previewUrl} alt="" className="w-9 h-9 object-cover rounded-lg border border-border shrink-0" />
+                      <span className="truncate font-medium text-foreground">{item.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {item.status === 'processing' && (
+                        <span className="text-xs text-primary animate-pulse font-mono font-semibold">
+                          {item.progress}%
+                        </span>
+                      )}
+                      {item.status === 'done' && (
+                        <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10 font-semibold">
+                          {item.classification?.tipo.replace(/_/g, ' ')}
+                        </Badge>
+                      )}
+                      {item.status === 'error' && (
+                        <Badge variant="destructive" className="text-[10px]">Error OCR</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── PASO 3: REVISIÓN HUMAN-IN-THE-LOOP Y EDICIÓN ──────────────────── */}
+          {step === 3 && parsedData && (
+            <div className="space-y-6">
+              {/* Banner Informativo Superior */}
+              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-primary/15 text-primary shrink-0 mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">
+                    Revisión y Ajuste de Datos Extraídos (Human-in-the-Loop)
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Revisa y edita los campos extraídos antes de confirmar la creación oficial. Selecciona el formato que deseas generar:
+                  </p>
+                </div>
+              </div>
+
+              {/* Selector de Formato en Tarjetas Grandes y Claras (Grid 2 columnas) */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-foreground uppercase tracking-wider block">
+                  Tipo de Formato HSE a Generar:
                 </label>
-              </TabsContent>
-
-              {/* Subpestaña: Biblioteca Reutilizable */}
-              <TabsContent value="library" className="flex-1 flex flex-col min-h-0 space-y-2 pt-2">
-                <Input
-                  placeholder="Buscar en biblioteca por nombre o texto OCR..."
-                  value={searchLibrary}
-                  onChange={(e) => setSearchLibrary(e.target.value)}
-                  className="h-8 text-xs"
-                />
-                <div className="flex-1 min-h-[220px] max-h-[320px] overflow-y-auto pr-1">
-                  {loadingLibrary ? (
-                    <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                      Cargando biblioteca...
-                    </div>
-                  ) : filteredLibrary.length === 0 ? (
-                    <div className="text-center py-10 text-xs text-muted-foreground">
-                      No hay imágenes disponibles en la biblioteca.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                      {filteredLibrary.map((ev) => {
-                        const isSelected = selectedItems.some((it) => it.evidence?.id === ev.id);
-                        return (
-                          <div
-                            key={ev.id}
-                            onClick={() => toggleSelectLibraryEvidence(ev)}
-                            className={`p-2 rounded-xl border cursor-pointer transition-all flex flex-col gap-1.5 ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                                : 'border-border bg-card hover:border-foreground/30'
-                            }`}
-                          >
-                            <img
-                              src={libraryUrlMap[ev.id]}
-                              alt={ev.nombre_archivo}
-                              className="w-full h-20 object-cover rounded-lg bg-muted"
-                            />
-                            <span className="text-[10px] font-semibold truncate" title={ev.nombre_archivo}>
-                              {ev.nombre_archivo}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            {/* Lista de Imágenes Seleccionadas */}
-            {selectedItems.length > 0 && (
-              <div className="p-3 rounded-xl border border-border bg-card space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span>Lote de imágenes listo ({selectedItems.length}):</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedItems([])}
-                    className="h-6 text-[11px] text-muted-foreground cursor-pointer"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleFormatChange('INSPECCION')}
+                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
+                      selectedFormatType === 'INSPECCION'
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20 shadow-xs'
+                        : 'border-border bg-card hover:border-foreground/30 hover:bg-muted/30'
+                    }`}
                   >
-                    Limpiar todo
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  {selectedItems.map((item) => (
-                    <div key={item.id} className="relative group shrink-0 w-20">
-                      <img
-                        src={item.previewUrl}
-                        alt={item.name}
-                        className="w-20 h-20 object-cover rounded-lg border border-border"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeSelectedItem(item.id)}
-                        className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                      <span className="text-[9px] block truncate text-muted-foreground mt-0.5" title={item.name}>
-                        {item.name}
-                      </span>
+                    <div className={`p-2 rounded-xl shrink-0 ${selectedFormatType === 'INSPECCION' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                      <FileCheck2 className="w-5 h-5" />
                     </div>
-                  ))}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-foreground">Formato HSE-EL-F-120</span>
+                        {selectedFormatType === 'INSPECCION' && (
+                          <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0">Activo</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Inspección Periódica + Hallazgos + Corrección en Campo (Checklist 15 Secciones, 4 Págs)
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleFormatChange('AMONESTACION')}
+                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
+                      selectedFormatType === 'AMONESTACION'
+                        ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20 shadow-xs'
+                        : 'border-border bg-card hover:border-foreground/30 hover:bg-muted/30'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl shrink-0 ${selectedFormatType === 'AMONESTACION' ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                      <ShieldAlert className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-foreground">Formato HSE-EL-F-128</span>
+                        {selectedFormatType === 'AMONESTACION' && (
+                          <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0">Activo</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Registro Oficial de Amonestación a Trabajador / Cuadrilla por Faltas al RISST
+                      </p>
+                    </div>
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* ── PASO 2: PROCESAMIENTO OCR EN VIVO ─────────────────────────────── */}
-        {step === 2 && (
-          <div className="flex-1 flex flex-col justify-center space-y-4 py-8 max-w-lg mx-auto w-full">
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                <Loader2 className="w-6 h-6 animate-spin" />
-              </div>
-              <h3 className="text-sm font-bold text-foreground">
-                Procesando Lote de Imágenes con Tesseract.js (spa)
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Extrayendo texto de capturas de WhatsApp, credenciales fotocheck y sellos GPS de fotos de campo...
-              </p>
-            </div>
-
-            <Progress value={globalProgress} className="h-2 rounded-full" />
-
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {selectedItems.map((item) => (
-                <div key={item.id} className="p-2.5 rounded-lg border border-border bg-card flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 truncate max-w-[260px]">
-                    <img src={item.previewUrl} alt="" className="w-7 h-7 object-cover rounded" />
-                    <span className="truncate font-medium">{item.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.status === 'processing' && (
-                      <span className="text-[11px] text-primary animate-pulse font-mono">
-                        {item.progress}%
-                      </span>
-                    )}
-                    {item.status === 'done' && (
-                      <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
-                        {item.classification?.tipo.replace(/_/g, ' ')}
-                      </Badge>
-                    )}
-                    {item.status === 'error' && (
-                      <Badge variant="destructive" className="text-[10px]">Error OCR</Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── PASO 3: REVISIÓN HUMAN-IN-THE-LOOP Y EDICIÓN ──────────────────── */}
-        {step === 3 && parsedData && (
-          <div className="flex-1 flex flex-col min-h-0 space-y-4 py-1 overflow-y-auto pr-1">
-            {/* Selector de Tipo de Formato */}
-            <div className="p-3 rounded-xl border border-primary/30 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-xs font-bold text-foreground block">
-                  Propuesta de Informe Inteligente:
+              {/* Grilla de Datos Generales (3 Columnas en Desktop) */}
+              <div className="p-4 rounded-xl border border-border bg-card space-y-3 shadow-xs">
+                <span className="text-xs font-bold text-foreground uppercase tracking-wider block">
+                  Datos Generales de la Operación
                 </span>
-                <span className="text-[11px] text-muted-foreground">
-                  Valida o modifica los campos extraídos antes de confirmar la creación oficial.
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant={selectedFormatType === 'INSPECCION' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedFormatType('INSPECCION')}
-                  className="text-xs h-8 cursor-pointer"
-                >
-                  <FileCheck2 className="w-3.5 h-3.5 mr-1" />
-                  HSE-EL-F-120 (Inspección)
-                </Button>
-                <Button
-                  type="button"
-                  variant={selectedFormatType === 'AMONESTACION' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedFormatType('AMONESTACION')}
-                  className="text-xs h-8 cursor-pointer"
-                >
-                  <ShieldAlert className="w-3.5 h-3.5 mr-1" />
-                  HSE-EL-F-128 (Amonestación)
-                </Button>
-              </div>
-            </div>
-
-            {/* Formulario editable de datos extraídos */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Proyecto / Sede</label>
-                <Input
-                  value={parsedData.proyecto}
-                  onChange={(e) => setParsedData({ ...parsedData, proyecto: e.target.value })}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div>
-                <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Actividad Detectada</label>
-                <Input
-                  value={parsedData.actividad}
-                  onChange={(e) => setParsedData({ ...parsedData, actividad: e.target.value })}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div>
-                <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Lugar / Ubicación</label>
-                <Input
-                  value={parsedData.ubicacion}
-                  onChange={(e) => setParsedData({ ...parsedData, ubicacion: e.target.value })}
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Fecha Inspección</label>
-                <Input
-                  type="date"
-                  value={parsedData.fecha}
-                  onChange={(e) => setParsedData({ ...parsedData, fecha: e.target.value })}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div>
-                <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Hora</label>
-                <Input
-                  type="time"
-                  value={parsedData.hora}
-                  onChange={(e) => setParsedData({ ...parsedData, hora: e.target.value })}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div>
-                <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Supervisor HSE</label>
-                <Input
-                  value={parsedData.supervisor}
-                  onChange={(e) => setParsedData({ ...parsedData, supervisor: e.target.value })}
-                  className="h-8 text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Datos del Trabajador / Amonestado */}
-            <div className="p-3 rounded-xl border border-border bg-card space-y-2">
-              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-primary" />
-                Personal Involucrado / Trabajador Intervenido
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                <div>
-                  <label className="text-[10px] text-muted-foreground">Apellidos y Nombres</label>
-                  <Input
-                    value={parsedData.trabajador.nombreCompleto}
-                    onChange={(e) => setParsedData({
-                      ...parsedData,
-                      trabajador: { ...parsedData.trabajador, nombreCompleto: e.target.value },
-                    })}
-                    className="h-8 text-xs font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-muted-foreground">DNI</label>
-                  <Input
-                    value={parsedData.trabajador.dni}
-                    onChange={(e) => setParsedData({
-                      ...parsedData,
-                      trabajador: { ...parsedData.trabajador, dni: e.target.value },
-                    })}
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-muted-foreground">Cargo / Ocupación</label>
-                  <Input
-                    value={parsedData.trabajador.cargo}
-                    onChange={(e) => setParsedData({
-                      ...parsedData,
-                      trabajador: { ...parsedData.trabajador, cargo: e.target.value },
-                    })}
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-muted-foreground">Empresa</label>
-                  <Input
-                    value={parsedData.trabajador.empresa}
-                    onChange={(e) => setParsedData({
-                      ...parsedData,
-                      trabajador: { ...parsedData.trabajador, empresa: e.target.value },
-                    })}
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Hallazgo y Acción Correctiva */}
-            <div className="p-3 rounded-xl border border-border bg-card space-y-2">
-              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                Hallazgo y Acción Correctiva Propuesta
-              </span>
-              <div className="space-y-2 text-xs">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] text-muted-foreground font-semibold">Descripción del Hallazgo / Observación</label>
-                    <Badge variant="outline" className="text-[9px]">
-                      Ítem sugerido: {parsedData.hallazgo.itemReferencia}
-                    </Badge>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Proyecto / Sede</label>
+                    <Input
+                      value={parsedData.proyecto}
+                      onChange={(e) => setParsedData({ ...parsedData, proyecto: e.target.value })}
+                      className="h-9 text-xs w-full min-w-0"
+                    />
                   </div>
-                  <textarea
-                    rows={2}
-                    value={parsedData.hallazgo.descripcion}
-                    onChange={(e) => setParsedData({
-                      ...parsedData,
-                      hallazgo: { ...parsedData.hallazgo, descripcion: e.target.value },
-                    })}
-                    className="w-full text-xs p-2 rounded-lg border border-input bg-background"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-muted-foreground font-semibold block mb-1">Acción para el Levantamiento / Medida Inmediata</label>
-                  <textarea
-                    rows={2}
-                    value={parsedData.hallazgo.accionLevantamiento}
-                    onChange={(e) => setParsedData({
-                      ...parsedData,
-                      hallazgo: { ...parsedData.hallazgo, accionLevantamiento: e.target.value },
-                    })}
-                    className="w-full text-xs p-2 rounded-lg border border-input bg-background"
-                  />
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Actividad Detectada</label>
+                    <Input
+                      value={parsedData.actividad}
+                      onChange={(e) => setParsedData({ ...parsedData, actividad: e.target.value })}
+                      className="h-9 text-xs w-full min-w-0 font-medium"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Lugar / Ubicación</label>
+                    <Input
+                      value={parsedData.ubicacion}
+                      onChange={(e) => setParsedData({ ...parsedData, ubicacion: e.target.value })}
+                      className="h-9 text-xs w-full min-w-0"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Fecha Inspección</label>
+                    <Input
+                      type="date"
+                      value={parsedData.fecha}
+                      onChange={(e) => setParsedData({ ...parsedData, fecha: e.target.value })}
+                      className="h-9 text-xs w-full min-w-0"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Hora</label>
+                    <Input
+                      type="time"
+                      value={parsedData.hora}
+                      onChange={(e) => setParsedData({ ...parsedData, hora: e.target.value })}
+                      className="h-9 text-xs w-full min-w-0"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Supervisor HSE</label>
+                    <Input
+                      value={parsedData.supervisor}
+                      onChange={(e) => setParsedData({ ...parsedData, supervisor: e.target.value })}
+                      className="h-9 text-xs w-full min-w-0"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Footer del Modal */}
-        <DialogFooter className="pt-3 border-t border-border flex items-center justify-between gap-2">
+              {/* Personal Involucrado / Trabajador Intervenido (4 Columnas en Desktop) */}
+              <div className="p-4 rounded-xl border border-border bg-card space-y-3 shadow-xs">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                  <User className="w-4 h-4 text-primary" />
+                  Personal Involucrado / Trabajador Intervenido
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Apellidos y Nombres</label>
+                    <Input
+                      value={parsedData.trabajador.nombreCompleto}
+                      onChange={(e) => setParsedData({
+                        ...parsedData,
+                        trabajador: { ...parsedData.trabajador, nombreCompleto: e.target.value },
+                      })}
+                      className="h-9 text-xs font-semibold w-full min-w-0"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">DNI</label>
+                    <Input
+                      value={parsedData.trabajador.dni}
+                      onChange={(e) => setParsedData({
+                        ...parsedData,
+                        trabajador: { ...parsedData.trabajador, dni: e.target.value },
+                      })}
+                      className="h-9 text-xs font-mono w-full min-w-0"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Cargo / Ocupación</label>
+                    <Input
+                      value={parsedData.trabajador.cargo}
+                      onChange={(e) => setParsedData({
+                        ...parsedData,
+                        trabajador: { ...parsedData.trabajador, cargo: e.target.value },
+                      })}
+                      className="h-9 text-xs w-full min-w-0"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Empresa</label>
+                    <Input
+                      value={parsedData.trabajador.empresa}
+                      onChange={(e) => setParsedData({
+                        ...parsedData,
+                        trabajador: { ...parsedData.trabajador, empresa: e.target.value },
+                      })}
+                      className="h-9 text-xs w-full min-w-0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECCIÓN ESPECÍFICA SEGÚN FORMATO SELECCIONADO */}
+              {selectedFormatType === 'INSPECCION' ? (
+                /* ── CAMPOS F-120 (Inspección + Levantamiento + Charla) ── */
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl border border-border bg-card space-y-3 shadow-xs">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      Hallazgo y Acción Correctiva (HSE-EL-F-120)
+                    </span>
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] text-muted-foreground font-semibold">Descripción del Hallazgo / Observación</label>
+                          <Badge variant="outline" className="text-[10px]">
+                            Ítem sugerido: {parsedData.hallazgo.itemReferencia}
+                          </Badge>
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={parsedData.hallazgo.descripcion}
+                          onChange={(e) => setParsedData({
+                            ...parsedData,
+                            hallazgo: { ...parsedData.hallazgo, descripcion: e.target.value },
+                          })}
+                          className="w-full text-xs p-2.5 rounded-lg border border-input bg-background focus:ring-1 focus:ring-primary outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-muted-foreground font-semibold block mb-1">Acción para el Levantamiento / Medida Inmediata</label>
+                        <textarea
+                          rows={2}
+                          value={parsedData.hallazgo.accionLevantamiento}
+                          onChange={(e) => setParsedData({
+                            ...parsedData,
+                            hallazgo: { ...parsedData.hallazgo, accionLevantamiento: e.target.value },
+                          })}
+                          className="w-full text-xs p-2.5 rounded-lg border border-input bg-background focus:ring-1 focus:ring-primary outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Retroalimentación / Charla de 5 Minutos */}
+                  <div className="p-4 rounded-xl border border-border bg-card space-y-3 shadow-xs">
+                    <span className="text-xs font-bold text-foreground uppercase tracking-wider block">
+                      Retroalimentación / Charla Preventiva de Campo
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] text-muted-foreground font-semibold block mb-1">Tema Tratado</label>
+                        <Input
+                          value={parsedData.charla.tema}
+                          onChange={(e) => setParsedData({
+                            ...parsedData,
+                            charla: { ...parsedData.charla, tema: e.target.value },
+                          })}
+                          className="h-9 text-xs w-full"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] text-muted-foreground font-semibold block mb-1">Desde</label>
+                          <Input
+                            type="time"
+                            value={parsedData.charla.horaDesde}
+                            onChange={(e) => setParsedData({
+                              ...parsedData,
+                              charla: { ...parsedData.charla, horaDesde: e.target.value },
+                            })}
+                            className="h-9 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-muted-foreground font-semibold block mb-1">Hasta</label>
+                          <Input
+                            type="time"
+                            value={parsedData.charla.horaHasta}
+                            onChange={(e) => setParsedData({
+                              ...parsedData,
+                              charla: { ...parsedData.charla, horaHasta: e.target.value },
+                            })}
+                            className="h-9 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ── CAMPOS F-128 (Amonestación Oficial RISST) ── */
+                <div className="p-4 rounded-xl border border-amber-500/30 bg-card space-y-4 shadow-xs">
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+                    <ShieldAlert className="w-4 h-4" />
+                    Parámetros de Amonestación RISST (HSE-EL-F-128)
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Motivo de la Falta</label>
+                      <select
+                        value={parsedData.amonestacion.motivoCodigo}
+                        onChange={(e) => setParsedData({
+                          ...parsedData,
+                          amonestacion: { ...parsedData.amonestacion, motivoCodigo: e.target.value as MotivoAmonestacion },
+                        })}
+                        className="w-full h-9 rounded-lg border border-input bg-background px-2.5 text-xs font-medium cursor-pointer"
+                      >
+                        {(Object.keys(MOTIVOS_AMONESTACION) as MotivoAmonestacion[]).map((cod) => (
+                          <option key={cod} value={cod}>{MOTIVOS_AMONESTACION[cod]}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Nivel de Riesgo</label>
+                      <select
+                        value={parsedData.amonestacion.nivelRiesgo}
+                        onChange={(e) => setParsedData({
+                          ...parsedData,
+                          amonestacion: { ...parsedData.amonestacion, nivelRiesgo: e.target.value as NivelRiesgoAmonestacion },
+                        })}
+                        className="w-full h-9 rounded-lg border border-input bg-background px-2.5 text-xs font-medium cursor-pointer"
+                      >
+                        {(Object.keys(NIVELES_RIESGO) as NivelRiesgoAmonestacion[]).map((cod) => (
+                          <option key={cod} value={cod}>{NIVELES_RIESGO[cod]}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-semibold text-muted-foreground block text-[11px] mb-1">Sanción Aplicable (RISST)</label>
+                      <select
+                        value={parsedData.amonestacion.sancionSugerida}
+                        onChange={(e) => setParsedData({
+                          ...parsedData,
+                          amonestacion: { ...parsedData.amonestacion, sancionSugerida: e.target.value as SancionAmonestacion },
+                        })}
+                        className="w-full h-9 rounded-lg border border-input bg-background px-2.5 text-xs font-medium cursor-pointer"
+                      >
+                        {(Object.keys(SANCIONES_RISST) as SancionAmonestacion[]).map((cod) => (
+                          <option key={cod} value={cod}>{SANCIONES_RISST[cod]}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="text-[11px] text-muted-foreground font-semibold block mb-1">
+                        Relato Circunstanciado de los Hechos
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={parsedData.amonestacion.relatoHechos}
+                        onChange={(e) => setParsedData({
+                          ...parsedData,
+                          amonestacion: { ...parsedData.amonestacion, relatoHechos: e.target.value },
+                        })}
+                        className="w-full text-xs p-2.5 rounded-lg border border-input bg-background focus:ring-1 focus:ring-amber-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-muted-foreground font-semibold block mb-1">
+                        Acción Correctiva Inmediata Dispuesta
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={parsedData.amonestacion.accionInmediata}
+                        onChange={(e) => setParsedData({
+                          ...parsedData,
+                          amonestacion: { ...parsedData.amonestacion, accionInmediata: e.target.value },
+                        })}
+                        className="w-full text-xs p-2.5 rounded-lg border border-input bg-background focus:ring-1 focus:ring-amber-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer Fijo con Botones Claros */}
+        <DialogFooter className="p-4 px-6 border-t border-border/80 bg-background shrink-0 flex items-center justify-between gap-3">
           {step === 1 && (
             <>
               <Button variant="outline" size="sm" onClick={onClose} className="text-xs cursor-pointer">
@@ -854,7 +1082,7 @@ export const SmartReportGeneratorModal: React.FC<SmartReportGeneratorModalProps>
                 size="sm"
                 onClick={handleStartProcessing}
                 disabled={selectedItems.length === 0}
-                className="text-xs gap-1.5 cursor-pointer bg-primary text-primary-foreground"
+                className="text-xs gap-1.5 cursor-pointer bg-primary text-primary-foreground shadow-xs"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Procesar {selectedItems.length > 0 ? `(${selectedItems.length}) Fotos` : ''} con OCR</span>
@@ -863,8 +1091,9 @@ export const SmartReportGeneratorModal: React.FC<SmartReportGeneratorModalProps>
           )}
 
           {step === 2 && (
-            <div className="text-xs text-muted-foreground italic">
-              Extrayendo datos de WhatsApp y fotos de campo...
+            <div className="text-xs text-muted-foreground italic flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <span>Extrayendo datos de WhatsApp y fotos de campo con Tesseract...</span>
             </div>
           )}
 
@@ -883,7 +1112,11 @@ export const SmartReportGeneratorModal: React.FC<SmartReportGeneratorModalProps>
                 size="sm"
                 onClick={handleConfirmAndGenerate}
                 disabled={isCreatingActivity}
-                className="text-xs gap-1.5 cursor-pointer bg-primary text-primary-foreground"
+                className={`text-xs gap-1.5 cursor-pointer text-white shadow-xs ${
+                  selectedFormatType === 'AMONESTACION'
+                    ? 'bg-amber-600 hover:bg-amber-500 active:bg-amber-700'
+                    : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                }`}
               >
                 {isCreatingActivity ? (
                   <>
@@ -893,7 +1126,11 @@ export const SmartReportGeneratorModal: React.FC<SmartReportGeneratorModalProps>
                 ) : (
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Confirmar y Generar Informe ({selectedFormatType})</span>
+                    <span>
+                      {selectedFormatType === 'AMONESTACION'
+                        ? 'Confirmar y Generar Informe (HSE-EL-F-128 AMONESTACIÓN)'
+                        : 'Confirmar y Generar Informe (HSE-EL-F-120 INSPECCIÓN)'}
+                    </span>
                   </>
                 )}
               </Button>

@@ -229,18 +229,18 @@ export const PatchAndBackupCenterModal: React.FC<PatchAndBackupCenterModalProps>
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-6 overflow-hidden">
-        <DialogHeader className="shrink-0 pb-2 border-b">
+      <DialogContent className="sm:max-w-3xl lg:max-w-4xl w-[95vw] max-h-[88vh] flex flex-col p-0 overflow-hidden bg-card border-border/80 shadow-2xl">
+        <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/80 bg-card">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
                 <ShieldCheck className="h-5 w-5" />
               </div>
-              <div>
-                <DialogTitle className="text-lg font-bold">
+              <div className="min-w-0">
+                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground truncate">
                   Centro de Actualizaciones, Parches y Backups
                 </DialogTitle>
-                <DialogDescription className="text-xs">
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                   Gestión integral de parches OTA, sobrescritura segura y puntos de restauración &bull; v{CURRENT_APP_VERSION}
                 </DialogDescription>
               </div>
@@ -249,7 +249,7 @@ export const PatchAndBackupCenterModal: React.FC<PatchAndBackupCenterModalProps>
               variant="outline"
               size="sm"
               onClick={handleDownloadFullBackup}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs cursor-pointer"
             >
               <Download className="h-3.5 w-3.5 text-primary" />
               <span>Descargar Copia (.json)</span>
@@ -261,7 +261,7 @@ export const PatchAndBackupCenterModal: React.FC<PatchAndBackupCenterModalProps>
         <Tabs
           value={activeTab}
           onValueChange={(val) => setActiveTab(val as any)}
-          className="flex-1 flex flex-col min-h-0 mt-3"
+          className="flex-1 flex flex-col min-h-0 overflow-hidden p-6 pt-3"
         >
           <TabsList className="grid grid-cols-3 w-full shrink-0">
             <TabsTrigger value="ota" className="text-xs flex items-center gap-1.5">
