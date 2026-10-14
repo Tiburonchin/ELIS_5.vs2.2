@@ -78,9 +78,9 @@ describe('ActivitiesManager Page Component', () => {
     expect(screen.getByText(/Cargando actividades desde Supabase/i)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText('ACT-2026-001')).toBeInTheDocument();
-      expect(screen.getByText('Planta Principal')).toBeInTheDocument();
-      expect(screen.getByText(/Carlos Mendoza/i)).toBeInTheDocument();
+      expect(screen.getAllByText('ACT-2026-001').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Planta Principal').length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Carlos Mendoza/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -105,8 +105,8 @@ describe('ActivitiesManager Page Component', () => {
     });
 
     // Abrir modal
-    const newBtn = screen.getByText('Nueva Actividad');
-    fireEvent.click(newBtn);
+    const newBtns = screen.getAllByRole('button', { name: /Nueva Actividad/i });
+    fireEvent.click(newBtns[0]);
 
     expect(screen.getByText('Nueva Actividad Operativa')).toBeInTheDocument();
 
@@ -124,7 +124,7 @@ describe('ActivitiesManager Page Component', () => {
 
     await waitFor(() => {
       expect(activityService.create).toHaveBeenCalled();
-      expect(screen.getByText('ACT-2026-999')).toBeInTheDocument();
+      expect(screen.getAllByText('ACT-2026-999').length).toBeGreaterThan(0);
     });
   });
 

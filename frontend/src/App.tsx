@@ -59,6 +59,18 @@ export const App: React.FC = () => {
         <DashboardLayout
           activeTab={activeTab}
           onTabChange={handleTabChange}
+          currentViewTitle={
+            selectedActivity
+              ? `Detalle de Inspección (${selectedActivity.codigo_referencia})`
+              : activeTab === 'actividades'
+              ? 'Gestor de Actividades'
+              : 'Bandeja de Evidencias'
+          }
+          onBreadcrumbNavigate={() => {
+            if (selectedActivity) {
+              setSelectedActivity(null);
+            }
+          }}
         >
           {/* Banner de Notificación shadcn style */}
           {notification && (

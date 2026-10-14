@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   activityService,
   type ActividadRow,
@@ -9,7 +9,7 @@ import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
 import { DataNodeOrb } from '../components/voice/DataNodeOrb';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -33,6 +33,13 @@ import {
   Edit2,
   CloudCheck,
   Sparkles,
+  Search,
+  ClipboardCheck,
+  AlertTriangle,
+  FileSpreadsheet,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 import { SmartReportGeneratorModal } from '../components/reports/SmartReportGeneratorModal';
 import { toast } from 'sonner';
@@ -46,6 +53,14 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+
+  // Filtros y Búsqueda
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<'TODAS' | 'INSPECCION' | 'AMONESTACION' | 'OTROS'>('TODAS');
+
+  // Paginación limpia
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 12;
 
   // Estados del modal de Crear / Editar
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -325,90 +340,290 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     switch (estado) {
       case 'aprobado':
       case 'emitido':
-        return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">Emitido</Badge>;
+        return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 whitespace-nowrap">Emitido</Badge>;
       case 'en_revision':
-        return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30">En Revisión</Badge>;
+        return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 whitespace-nowrap">En Revisión</Badge>;
       default:
-        return <Badge variant="outline" className="text-muted-foreground">Borrador</Badge>;
+        return <Badge variant="outline" className="text-muted-foreground whitespace-nowrap">Borrador</Badge>;
     }
   };
 
+  const getTipoBadge = (tipo: string) => {
+    switch (tipo) {
+      case 'INSPECCION':
+        return (
+          <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 font-medium whitespace-nowrap">
+            Inspección
+          </Badge>
+        );
+      case 'AMONESTACION':
+        return (
+          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-medium whitespace-nowrap">
+            Amonestación
+          </Badge>
+        );
+      case 'AUDITORIA':
+        return (
+          <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 font-medium whitespace-nowrap">
+            Auditoría
+          </Badge>
+        );
+      case 'CAPACITACION':
+        return (
+          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-medium whitespace-nowrap">
+            Capacitación
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="secondary" className="capitalize whitespace-nowrap">
+            {tipo.replace(/_/g, ' ')}
+          </Badge>
+        );
+    }
+  };
+
+  // Métricas operativas (KPIs) en tiempo real
+  const kpis = useMemo(() => {
+    const total = activities.length;
+    const inspecciones = activities.filter((a) => a.tipo_actividad === 'INSPECCION').length;
+    const amonestaciones = activities.filter((a) => a.tipo_actividad === 'AMONESTACION').length;
+    const pendientes = activities.filter((a) => a.estado_reporte === 'pendiente').length;
+    const exportadas = activities.filter((a) => a.estado_reporte === 'exportada' || a.estado_reporte === 'publicada').length;
+    return { total, inspecciones, amonestaciones, pendientes, exportadas };
+  }, [activities]);
+
+  // Filtrado reactivo en cliente por búsqueda y tipo
+  const filteredActivities = useMemo(() => {
+    return activities.filter((act) => {
+      // Filtro por tipo
+      if (selectedTypeFilter === 'INSPECCION' && act.tipo_actividad !== 'INSPECCION') return false;
+      if (selectedTypeFilter === 'AMONESTACION' && act.tipo_actividad !== 'AMONESTACION') return false;
+      if (selectedTypeFilter === 'OTROS' && (act.tipo_actividad === 'INSPECCION' || act.tipo_actividad === 'AMONESTACION')) return false;
+
+      // Filtro por texto de búsqueda
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const matchCod = act.codigo_referencia?.toLowerCase().includes(term);
+      const matchUbi = act.ubicacion?.toLowerCase().includes(term);
+      const matchResp = act.responsable_nombre?.toLowerCase().includes(term);
+      const matchDesc = act.descripcion?.toLowerCase().includes(term);
+
+      return Boolean(matchCod || matchUbi || matchResp || matchDesc);
+    });
+  }, [activities, searchTerm, selectedTypeFilter]);
+
+  // Paginación limpia
+  const totalPages = Math.ceil(filteredActivities.length / pageSize) || 1;
+  const paginatedActivities = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredActivities.slice(start, start + pageSize);
+  }, [filteredActivities, currentPage, pageSize]);
+
+  // Resetear página si el filtro cambia
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedTypeFilter]);
+
   return (
     <div className="space-y-6">
-      {/* Cabecera Corporativa con Card */}
+      {/* ── NIVEL 1: ENCABEZADO LIMPIO Y ACCIONES PRINCIPALES (Flex Col / Row) ── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Bloque Izquierdo */}
+        <div className="space-y-1.5 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground whitespace-nowrap">
+              Gestor de Actividades e Inspecciones
+            </h1>
+            <Badge variant="secondary" className="font-mono text-xs whitespace-nowrap shrink-0">
+              {activities.length} registradas
+            </Badge>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 whitespace-nowrap shrink-0">
+              <CloudCheck className="w-3.5 h-3.5 shrink-0" />
+              <span>Nube Conectada</span>
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground max-w-2xl">
+            Administra órdenes de trabajo operativas, asocia evidencias fotográficas forenses y genera fichas de inspección inmutables.
+          </p>
+        </div>
+
+        {/* Bloque Derecho: Botones de Acción sin Desborde */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full sm:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsSmartModalOpen(true)}
+            className="w-full sm:w-auto justify-center gap-2 cursor-pointer border-amber-500/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold whitespace-nowrap shrink-0"
+            title="Generar informe pre-llenado desde captura WhatsApp o lote de fotos"
+          >
+            <Sparkles className="h-4 w-4 text-amber-500 animate-pulse shrink-0" />
+            <span>Generar Informe desde Captura WhatsApp / Fotos</span>
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handleOpenCreate}
+            className="w-full sm:w-auto justify-center gap-2 cursor-pointer whitespace-nowrap shrink-0 shadow-sm font-medium"
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            <span>Nueva Actividad</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* ── TARJETAS KPI SUPERIORES: RESUMEN OPERATIVO CON CARD DE SHADCN/UI ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* KPI 1: Total Actividades */}
+        <Card className="border-border shadow-xs hover:border-primary/40 transition-colors">
+          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+            <span className="text-xs font-medium text-muted-foreground">Total Actividades</span>
+            <Layers className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold tracking-tight text-foreground">{kpis.total}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Órdenes operativas registradas</p>
+          </CardContent>
+        </Card>
+
+        {/* KPI 2: Inspecciones HSE F-120 */}
+        <Card className="border-border shadow-xs hover:border-blue-500/40 transition-colors">
+          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+            <span className="text-xs font-medium text-muted-foreground">Inspecciones HSE</span>
+            <ClipboardCheck className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">{kpis.inspecciones}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Formato HSE-EL-F-120</p>
+          </CardContent>
+        </Card>
+
+        {/* KPI 3: Amonestaciones F-128 */}
+        <Card className="border-border shadow-xs hover:border-amber-500/40 transition-colors">
+          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+            <span className="text-xs font-medium text-muted-foreground">Amonestaciones</span>
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">{kpis.amonestaciones}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Formato HSE-EL-F-128</p>
+          </CardContent>
+        </Card>
+
+        {/* KPI 4: Pendientes vs Exportadas */}
+        <Card className="border-border shadow-xs hover:border-emerald-500/40 transition-colors">
+          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+            <span className="text-xs font-medium text-muted-foreground">Borrador / Emitidas</span>
+            <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl font-bold tracking-tight text-foreground">
+              <span className="text-muted-foreground">{kpis.pendientes}</span>
+              <span className="text-muted-foreground/40 font-normal mx-1">/</span>
+              <span className="text-emerald-600 dark:text-emerald-400">{kpis.exportadas}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">En progreso vs Exportadas</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── NIVEL 2: TOOLBAR DE BÚSQUEDA, FILTROS Y SELECTOR DE VISTA ── */}
       <Card className="border-border shadow-xs">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-lg font-bold tracking-tight text-foreground">
-                Gestor de Actividades e Inspecciones
-              </CardTitle>
-              <Badge variant="secondary" className="font-mono text-xs">
-                {activities.length} registradas
-              </Badge>
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                <CloudCheck className="w-3.5 h-3.5" />
-                <span>Nube Conectada</span>
-              </span>
-            </div>
-            <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-              Administra órdenes de trabajo operativas, asocia evidencias fotográficas forenses y genera fichas de inspección inmutables.
-            </CardDescription>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Toggle de vistas: Tabla / Tarjetas */}
-            <div className="inline-flex rounded-lg border bg-muted/40 p-1">
-              <button
-                type="button"
-                onClick={() => setViewMode('table')}
-                className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
-                  viewMode === 'table'
-                    ? 'bg-background text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="Vista en Tabla"
-              >
-                <TableProperties className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('cards')}
-                className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
-                  viewMode === 'cards'
-                    ? 'bg-background text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="Vista en Tarjetas"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            {/* Campo de búsqueda con Input shadcn e ícono Search */}
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Buscar por código, ubicación o responsable..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-background"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+                  title="Limpiar búsqueda"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsSmartModalOpen(true)}
-              className="gap-1.5 cursor-pointer border-amber-500/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold"
-              title="Generar automáticamente informe pre-llenado desde captura de WhatsApp o lote de fotos con OCR"
-            >
-              <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
-              <span className="hidden sm:inline">Generar Informe desde</span> Captura WhatsApp / Fotos
-            </Button>
+            {/* Filtros rápidos por Tipo (Badges interactivos) + Toggle Vista */}
+            <div className="flex items-center justify-between md:justify-end gap-2 flex-wrap">
+              <div className="inline-flex rounded-lg border bg-muted/30 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTypeFilter('TODAS')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                    selectedTypeFilter === 'TODAS'
+                      ? 'bg-background text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Todas ({activities.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTypeFilter('INSPECCION')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                    selectedTypeFilter === 'INSPECCION'
+                      ? 'bg-background text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Inspección F-120 ({kpis.inspecciones})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTypeFilter('AMONESTACION')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                    selectedTypeFilter === 'AMONESTACION'
+                      ? 'bg-background text-amber-600 dark:text-amber-400 shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Amonestación F-128 ({kpis.amonestaciones})
+                </button>
+              </div>
 
-            <Button
-              type="button"
-              onClick={handleOpenCreate}
-              className="gap-1.5 cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Nueva Actividad</span>
-            </Button>
+              {/* Toggle de vistas: Tabla / Tarjetas */}
+              <div className="inline-flex rounded-lg border bg-muted/40 p-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                    viewMode === 'table'
+                      ? 'bg-background text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Vista en Tabla"
+                >
+                  <TableProperties className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('cards')}
+                  className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                    viewMode === 'cards'
+                      ? 'bg-background text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Vista en Tarjetas"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-        </CardHeader>
+        </CardContent>
       </Card>
 
-      {/* Estado: Loading */}
+      {/* ── CONTENIDO PRINCIPAL: LOADING, ERROR, EMPTY O LISTA ── */}
       {loading ? (
         <Card className="p-12 text-center border-border">
           <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -427,42 +642,162 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
             Reintentar
           </Button>
         </Card>
-      ) : activities.length === 0 ? (
+      ) : filteredActivities.length === 0 ? (
         <Card className="p-12 text-center border-2 border-dashed border-border bg-muted/20">
           <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3 text-muted-foreground">
             <Layers className="h-6 w-6" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground">No hay actividades creadas</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {searchTerm || selectedTypeFilter !== 'TODAS'
+              ? 'No se encontraron actividades coincidentes'
+              : 'No hay actividades creadas'}
+          </h3>
           <p className="text-xs text-muted-foreground mt-1 mb-4">
-            Crea la primera orden de inspección para comenzar a vincular evidencias.
+            {searchTerm || selectedTypeFilter !== 'TODAS'
+              ? 'Intenta ajustar los criterios de búsqueda o limpiar los filtros seleccionados.'
+              : 'Crea la primera orden de inspección para comenzar a vincular evidencias.'}
           </p>
-          <Button
-            onClick={handleOpenCreate}
-            size="sm"
-            className="gap-1.5 cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Crear Actividad Inicial
-          </Button>
+          {searchTerm || selectedTypeFilter !== 'TODAS' ? (
+            <Button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedTypeFilter('TODAS');
+              }}
+              size="sm"
+              variant="outline"
+              className="gap-1.5 cursor-pointer"
+            >
+              Restablecer Filtros
+            </Button>
+          ) : (
+            <Button
+              onClick={handleOpenCreate}
+              size="sm"
+              className="gap-1.5 cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Crear Actividad Inicial
+            </Button>
+          )}
         </Card>
-      ) : viewMode === 'table' ? (
-        /* Vista en Tabla shadcn con scroll horizontal fluido en móvil */
-        <Card className="border-border overflow-hidden">
-          <div className="w-full overflow-x-auto">
-            <Table>
-              <TableHeader>
-              <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="w-[140px] font-semibold">Código Ref.</TableHead>
-                <TableHead className="font-semibold">Tipo de Actividad</TableHead>
-                <TableHead className="font-semibold">Ubicación</TableHead>
-                <TableHead className="font-semibold">Fecha</TableHead>
-                <TableHead className="font-semibold">Responsable</TableHead>
-                <TableHead className="font-semibold">Estado</TableHead>
-                <TableHead className="text-right font-semibold">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {activities.map((act) => {
+      ) : (
+        <>
+          {/* ── VISTA DESKTOP: TABLA SHADCN/UI (hidden md:block si viewMode es table) ── */}
+          {viewMode === 'table' && (
+            <div className="hidden md:block">
+              <Card className="border-border overflow-hidden">
+                <div className="w-full overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableHead className="w-[170px] font-semibold whitespace-nowrap">Código Ref.</TableHead>
+                        <TableHead className="w-[140px] font-semibold whitespace-nowrap">Tipo de Actividad</TableHead>
+                        <TableHead className="font-semibold">Ubicación</TableHead>
+                        <TableHead className="w-[120px] font-semibold whitespace-nowrap">Fecha</TableHead>
+                        <TableHead className="font-semibold">Responsable</TableHead>
+                        <TableHead className="w-[110px] font-semibold whitespace-nowrap">Estado</TableHead>
+                        <TableHead className="w-[130px] text-right font-semibold whitespace-nowrap">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedActivities.map((act) => {
+                        const formattedDate = act.fecha_operacion
+                          ? new Date(act.fecha_operacion).toLocaleDateString('es-PE', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : 'Sin fecha';
+
+                        return (
+                          <TableRow key={act.id} className="hover:bg-muted/30 transition-colors">
+                            {/* Código de Referencia */}
+                            <TableCell className="font-mono font-semibold text-xs text-primary whitespace-nowrap">
+                              {act.codigo_referencia}
+                            </TableCell>
+
+                            {/* Tipo de Actividad Semántico */}
+                            <TableCell className="whitespace-nowrap">
+                              {getTipoBadge(act.tipo_actividad)}
+                            </TableCell>
+
+                            {/* Ubicación Expandida con Tooltip Nativo */}
+                            <TableCell className="text-xs text-muted-foreground">
+                              <div
+                                className="flex items-center gap-1.5 max-w-[260px] xl:max-w-[340px]"
+                                title={act.ubicacion || 'Sin ubicación registrada'}
+                              >
+                                <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                <span className="truncate font-normal text-foreground/80">
+                                  {act.ubicacion || '—'}
+                                </span>
+                              </div>
+                            </TableCell>
+
+                            {/* Fecha */}
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                <span>{formattedDate}</span>
+                              </div>
+                            </TableCell>
+
+                            {/* Responsable Expandido con Tooltip Nativo */}
+                            <TableCell className="text-xs text-foreground font-medium">
+                              <div
+                                className="flex items-center gap-1.5 max-w-[200px] xl:max-w-[280px]"
+                                title={act.responsable_nombre || 'Sin responsable asignado'}
+                              >
+                                <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                <span className="truncate">
+                                  {act.responsable_nombre || '—'}
+                                </span>
+                              </div>
+                            </TableCell>
+
+                            {/* Estado de Reporte */}
+                            <TableCell className="whitespace-nowrap">
+                              {getStatusBadge(act.estado_reporte)}
+                            </TableCell>
+
+                            {/* Acciones */}
+                            <TableCell className="text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenEdit(act)}
+                                  className="h-8 px-2 text-xs cursor-pointer text-muted-foreground hover:text-foreground"
+                                  title="Editar actividad"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => onSelectActivity && onSelectActivity(act)}
+                                  className="h-8 px-2.5 text-xs gap-1.5 cursor-pointer font-medium hover:border-primary/50"
+                                >
+                                  <span>Detalle</span>
+                                  <ArrowRight className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* ── VISTA MÓVIL / CUADRÍCULA: TARJETAS RESPONSIVAS SHADCN/UI ── */}
+          {/* Se muestra en mobile siempre cuando viewMode === 'table', o en cualquier pantalla si viewMode === 'cards' */}
+          <div className={viewMode === 'table' ? 'block md:hidden' : 'block'}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginatedActivities.map((act) => {
                 const formattedDate = act.fecha_operacion
                   ? new Date(act.fecha_operacion).toLocaleDateString('es-PE', {
                       day: '2-digit',
@@ -472,141 +807,118 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
                   : 'Sin fecha';
 
                 return (
-                  <TableRow key={act.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-mono font-semibold text-xs text-primary">
-                      {act.codigo_referencia}
-                    </TableCell>
-                    <TableCell className="capitalize font-medium text-xs">
-                      {act.tipo_actividad.replace(/_/g, ' ')}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate max-w-[180px]">{act.ubicacion}</span>
+                  <Card
+                    key={act.id}
+                    className="border-border hover:shadow-md hover:border-primary/50 transition-all flex flex-col justify-between"
+                  >
+                    <CardHeader className="p-4 pb-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                          {act.codigo_referencia}
+                        </span>
+                        {getStatusBadge(act.estado_reporte)}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <div className="flex items-center gap-2">
+                        {getTipoBadge(act.tipo_actividad)}
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="p-4 pt-0 space-y-2.5 text-xs text-muted-foreground">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
+                        <span className="font-medium text-foreground line-clamp-2">
+                          {act.ubicacion || 'Sin ubicación registrada'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <span>{formattedDate}</span>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-foreground font-medium">
-                      <div className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate max-w-[150px]">{act.responsable_nombre}</span>
+
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="text-foreground">
+                          Resp: <b>{act.responsable_nombre || 'No asignado'}</b>
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(act.estado_reporte)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenEdit(act)}
-                          className="h-8 px-2 text-xs cursor-pointer"
-                          title="Editar actividad"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onSelectActivity && onSelectActivity(act)}
-                          className="h-8 px-2.5 text-xs gap-1 cursor-pointer font-medium"
-                        >
-                          <span>Detalle</span>
-                          <ArrowRight className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+
+                      {act.descripcion && (
+                        <p className="mt-2 text-xs text-muted-foreground line-clamp-2 italic bg-muted/30 p-2.5 rounded-md border border-border/50">
+                          "{act.descripcion}"
+                        </p>
+                      )}
+                    </CardContent>
+
+                    <CardFooter className="p-4 pt-3 border-t border-border flex items-center justify-between gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenEdit(act)}
+                        className="h-9 px-3 text-xs cursor-pointer text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit2 className="h-3.5 w-3.5 mr-1.5" />
+                        Editar
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onSelectActivity && onSelectActivity(act)}
+                        className="h-9 px-3 text-xs gap-1.5 cursor-pointer font-medium hover:border-primary/50"
+                      >
+                        <span>Ver Detalle</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 );
               })}
-            </TableBody>
-          </Table>
+            </div>
           </div>
-        </Card>
-      ) : (
-        /* Vista en Tarjetas shadcn Card */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {activities.map((act) => {
-            const formattedDate = act.fecha_operacion
-              ? new Date(act.fecha_operacion).toLocaleDateString('es-PE', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })
-              : 'Sin fecha';
 
-            return (
-              <Card
-                key={act.id}
-                className="border-border hover:shadow-md hover:border-primary/50 transition-all flex flex-col justify-between"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs font-mono font-bold text-primary px-2 py-0.5 rounded bg-muted">
-                      {act.codigo_referencia}
-                    </span>
-                    {getStatusBadge(act.estado_reporte)}
-                  </div>
-                  <CardTitle className="text-sm font-semibold capitalize text-foreground">
-                    {act.tipo_actividad.replace(/_/g, ' ')}
-                  </CardTitle>
-                </CardHeader>
+          {/* ── BARRA DE PAGINACIÓN LIMPIA ── */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <span className="text-xs text-muted-foreground">
+                Mostrando <b className="text-foreground">{paginatedActivities.length}</b> de{' '}
+                <b className="text-foreground">{filteredActivities.length}</b> actividades
+                {searchTerm && ` (filtradas de un total de ${activities.length})`}
+              </span>
 
-                <CardContent className="space-y-2 text-xs text-muted-foreground py-0">
-                  <p className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{act.ubicacion}</span>
-                  </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 px-2.5 text-xs gap-1 cursor-pointer disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Anterior</span>
+                </Button>
 
-                  <p className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span>{formattedDate}</span>
-                  </p>
+                <div className="text-xs font-medium px-2 text-muted-foreground">
+                  Página <span className="text-foreground font-semibold">{currentPage}</span> de{' '}
+                  <span className="text-foreground font-semibold">{totalPages}</span>
+                </div>
 
-                  <p className="flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">Resp: <b>{act.responsable_nombre}</b></span>
-                  </p>
-
-                  {act.descripcion && (
-                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2 italic bg-muted/40 p-2 rounded-md">
-                      "{act.descripcion}"
-                    </p>
-                  )}
-                </CardContent>
-
-                <CardFooter className="pt-3 mt-3 border-t border-border flex items-center justify-between gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenEdit(act)}
-                    className="h-8 text-xs cursor-pointer"
-                  >
-                    Editar
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onSelectActivity && onSelectActivity(act)}
-                    className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
-                  >
-                    <span>Ver Detalle y Evidencias</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            );
-          })}
-        </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 px-2.5 text-xs gap-1 cursor-pointer disabled:opacity-40"
+                >
+                  <span>Siguiente</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Modal de Crear / Editar Actividad */}

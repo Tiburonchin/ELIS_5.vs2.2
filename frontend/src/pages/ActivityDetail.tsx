@@ -727,17 +727,17 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 whitespace-nowrap shrink-0">
                 {currentActivity.codigo_referencia}
               </span>
-              <Badge variant="outline" className="text-[10px] font-bold uppercase">
+              <Badge variant="outline" className="text-[10px] font-bold uppercase whitespace-nowrap shrink-0">
                 {isAmonestacion ? 'HSE-EL-F-128 (Amonestación)' : 'HSE-EL-F-120 (Inspección)'}
               </Badge>
-              <Badge variant={currentActivity.estado_reporte === 'exportada' ? 'secondary' : 'default'} className="text-[10px] uppercase">
+              <Badge variant={currentActivity.estado_reporte === 'exportada' ? 'secondary' : 'default'} className="text-[10px] uppercase whitespace-nowrap shrink-0">
                 {currentActivity.estado_reporte}
               </Badge>
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                <CloudCheck className="w-3.5 h-3.5" />
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 whitespace-nowrap shrink-0">
+                <CloudCheck className="w-3.5 h-3.5 shrink-0" />
                 <span>Nube Conectada</span>
               </span>
             </div>
