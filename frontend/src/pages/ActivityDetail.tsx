@@ -3,6 +3,7 @@ import {
   activityService,
   type ActividadRow,
 } from '../services/ActivityService';
+import { patchAndBackupService } from '../services/PatchAndBackupService';
 import { type EvidenciaRow } from '../services/EvidenceService';
 import { PdfExporter, type LinkedEvidenceItem } from '../components/reports/PdfExporter';
 import { EvidenceLibraryPickerModal, type RolEvidencia } from '../components/evidence/EvidenceLibraryPickerModal';
@@ -53,9 +54,11 @@ import {
   CloudCheck,
   Loader2,
   Library,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { parseWhatsAppReportText } from '../utils/whatsappReportParser';
+import { PatchAndBackupCenterModal } from '@/components/system/PatchAndBackupCenterModal';
 
 export interface ActivityDetailProps {
   activity: ActividadRow;
@@ -298,6 +301,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   // Estados del selector / modal de biblioteca reutilizable
   const [isLinkModalOpen, setIsLinkModalOpen] = useState<boolean>(false);
   const [modalDefaultRol, setModalDefaultRol] = useState<RolEvidencia>('hallazgo');
+  const [isPatchModalOpen, setIsPatchModalOpen] = useState<boolean>(false);
 
   const handleOpenLinkModal = (rol: RolEvidencia = 'hallazgo') => {
     setModalDefaultRol(rol);
@@ -322,12 +326,24 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   // ACCIONES ESPECÍFICAS DE FORMATOS
   // ═════════════════════════════════════════════════════════════════════════
 
-  // Botón: Cargar Caso Real Demo (Llerena Ríos 05/10/2026)
-  const handleCargarDemoLlerenaRios = () => {
+  // Botón: Cargar Caso Real Demo (Llerena Ríos 05/10/2026) con Backup Preventivo Automático
+  const handleCargarDemoLlerenaRios = async () => {
+    try {
+      // 1. Respaldo preventivo automático ("Por si acaso")
+      await patchAndBackupService.createSafetyBackup(
+        'PRE_SOBRESCRITURA_ACTIVIDAD',
+        currentActivity.id,
+        f120Data as any,
+        `Backup automático antes de cargar Caso Real Demo en actividad ${currentActivity.codigo_referencia}`
+      );
+    } catch (e) {
+      console.warn('[ActivityDetail] Respaldo preventivo no bloqueante:', e);
+    }
+
     const demo = crearDemoF120LlerenaRios();
     setF120Data(demo);
     setNotification({
-      message: '¡Caso Real de Inspección HSE (Llerena Ríos 05/10/2026) cargado con éxito!',
+      message: '¡Caso Real de Inspección HSE (Llerena Ríos 05/10/2026) cargado con éxito! (Backup de seguridad creado)',
       type: 'success',
     });
     setTimeout(() => setNotification(null), 4000);
@@ -550,11 +566,23 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
     });
   };
 
-  // Guardar Cambios en Supabase (Formato HSE + Datos Generales de la Actividad)
+  // Guardar Cambios en Supabase (Formato HSE + Datos Generales de la Actividad) con Backup Preventivo
   const handleGuardarCambios = async () => {
     setIsSaving(true);
     try {
       const datosJson = isAmonestacion ? f128Data : f120Data;
+
+      // 1. Respaldo preventivo automático ("Por si acaso") antes de sobrescribir
+      try {
+        await patchAndBackupService.createSafetyBackup(
+          'PRE_SOBRESCRITURA_ACTIVIDAD',
+          currentActivity.id,
+          datosJson as any,
+          `Backup de seguridad automático antes de guardar formato HSE en ${currentActivity.codigo_referencia}`
+        );
+      } catch (backupErr) {
+        console.warn('[ActivityDetail] Respaldo preventivo falló de manera silenciosa:', backupErr);
+      }
 
       // Sincronizar datos generales relevantes de la cabecera del formulario
       const camposGenerales: Partial<Pick<ActividadRow, 'ubicacion' | 'responsable_nombre' | 'descripcion' | 'fecha_operacion'>> = {};
@@ -714,6 +742,18 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
               <span>Cargar Caso Real (Llerena Ríos)</span>
             </Button>
           )}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsPatchModalOpen(true)}
+            className="cursor-pointer gap-1.5 text-xs font-semibold border-primary/30 hover:bg-primary/10 text-primary w-full sm:w-auto justify-center"
+            title="Abrir parches, sobrescritura controlada y rollback de esta actividad"
+          >
+            <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+            <span>Parches &amp; Backups</span>
+          </Button>
 
           <Button
             type="button"
@@ -2019,6 +2059,23 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
         defaultRol={modalDefaultRol}
         alreadyLinkedEvidenceIds={linkedItems.map((item) => item.evidencia.id)}
         onEvidencesLinked={handleEvidencesLinkedFromModal}
+      />
+
+      {/* ── MODAL CENTRO DE ACTUALIZACIONES, PARCHES Y BACKUPS ─────────────────── */}
+      <PatchAndBackupCenterModal
+        open={isPatchModalOpen}
+        onOpenChange={setIsPatchModalOpen}
+        targetActividadId={currentActivity.id}
+        targetCodigoReferencia={currentActivity.codigo_referencia}
+        onRestoreSuccess={() => {
+          fetchLinkedEvidences();
+          activityService.getById(currentActivity.id).then((fresh) => {
+            if (fresh) {
+              setCurrentActivity(fresh);
+              if (onActivityUpdated) onActivityUpdated(fresh);
+            }
+          });
+        }}
       />
     </div>
   );

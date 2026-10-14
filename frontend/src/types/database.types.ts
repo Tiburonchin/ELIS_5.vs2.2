@@ -259,11 +259,69 @@ export type Database = {
           },
         ]
       }
+      backups_sistema: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          descripcion: string | null
+          entidad_id: string | null
+          hash_integridad: string | null
+          id: string
+          snapshot_json: Json
+          tipo_backup: "PRE_PARCHE_APP" | "PRE_SOBRESCRITURA_ACTIVIDAD" | "MANUAL_COMPLETO" | "PARCHE_DATOS"
+          version_app: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          descripcion?: string | null
+          entidad_id?: string | null
+          hash_integridad?: string | null
+          id?: string
+          snapshot_json: Json
+          tipo_backup: "PRE_PARCHE_APP" | "PRE_SOBRESCRITURA_ACTIVIDAD" | "MANUAL_COMPLETO" | "PARCHE_DATOS"
+          version_app: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          descripcion?: string | null
+          entidad_id?: string | null
+          hash_integridad?: string | null
+          id?: string
+          snapshot_json?: Json
+          tipo_backup?: "PRE_PARCHE_APP" | "PRE_SOBRESCRITURA_ACTIVIDAD" | "MANUAL_COMPLETO" | "PARCHE_DATOS"
+          version_app?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backups_sistema_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      aplicar_parche_actividad_con_backup: {
+        Args: {
+          p_actividad_id: string
+          p_parche_json: Json
+          p_modo?: string
+        }
+        Returns: Json
+      }
+      restaurar_backup_actividad: {
+        Args: {
+          p_backup_id: string
+        }
+        Returns: Json
+      }
       guardar_actividad_hse_completa: {
         Args: {
           p_datos_formato_json?: Json

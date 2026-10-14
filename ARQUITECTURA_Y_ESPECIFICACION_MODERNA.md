@@ -848,3 +848,12 @@ frontend/
   - Motor de análisis heurístico local `whatsappReportParser.ts` con OCR textual tesseract.js y detección de sellos de cámaras Timestamp / GPS Map Camera.
   - Asistente visual `<SmartReportGeneratorModal />` en `ActivitiesManager` e `InboxEvidences` para generación inteligente de informes HSE-EL-F-120 y HSE-EL-F-128 bajo confirmación Human-in-the-Loop.
   - Botón de autocompletado instantáneo en `ActivityDetail.tsx` para reciclar datos OCR de imágenes pre-procesadas sin re-ejecutar el worker.
+* **[COMPLETADO] Módulo 12: Motor de Parches OTA, Sobrescritura Controlada y Backups Preventivos (Snapshot & Rollback)**
+  - Migración PostgreSQL `supabase/migrations/20261014_modulo12_patch_and_backups.sql` creando la tabla inmutable `public.backups_sistema` con RLS estricto (`:ro` para usuarios autenticados sin permisos de mutación o borrado).
+  - Función RPC `aplicar_parche_actividad_con_backup(p_actividad_id, p_parche_json, p_modo)`: genera de forma atómica e ineludible un snapshot previo con hash SHA-256 antes de aplicar modificaciones en modo `MERGE` (operador `||` de JSONB) o `OVERWRITE` (sustitución limpia).
+  - Función RPC `restaurar_backup_actividad(p_backup_id)`: reversión segura y atómica (Rollback en 1 clic) al estado exacto capturado en el snapshot.
+  - Servicio TypeScript `PatchAndBackupService.ts`: orquestación de respaldos duales (Cloud Supabase + LocalStorage para resiliencia offline), comprobación de chunks diferenciales del Service Worker con `skipWaiting`, exportación/importación de archivos `.elis-patch.json` y copias completas `.elis-backup.json`.
+  - Configuración de `vite.config.ts` con `vite-plugin-pwa` para gestión de Service Worker inteligente y purga selectiva de cachés obsoletas.
+  - Componente de interfaz visual `<PatchAndBackupCenterModal />` implementado con shadcn/ui (`Dialog`, `Tabs`, `Card`, `Progress`, `Badge`, `Button`), integrado en la barra superior de `DashboardLayout.tsx`, en el bloque inferior PWA y menú de perfil de `AppSidebar.tsx`, y accesible con contexto activo en `ActivityDetail.tsx`.
+  - Protección automática de backup preventivo integrada en `ActivityDetail.tsx` al pulsar "Guardar Formato HSE" o "Cargar Caso Real Demo (Llerena Ríos)".
+  - Suite de pruebas unitarias en Vitest (`PatchAndBackupService.test.ts`) con 100% de cobertura y validación de tipos estricta con `tsc -b`.

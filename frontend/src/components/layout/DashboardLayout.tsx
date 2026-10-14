@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import {
   SidebarProvider,
   SidebarInset,
@@ -7,8 +7,9 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Badge } from "@/components/ui/badge"
-import { ShieldCheck, Camera, ClipboardList } from "lucide-react"
+import { ShieldCheck, Camera, ClipboardList, RefreshCw } from "lucide-react"
 import { AssistantWidget } from "./AssistantWidget"
+import { PatchAndBackupCenterModal } from "@/components/system/PatchAndBackupCenterModal"
 
 export interface DashboardLayoutProps {
   children: React.ReactNode
@@ -25,6 +26,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   evidenceCount = 0,
   activityCount = 0,
 }) => {
+  const [patchModalOpen, setPatchModalOpen] = useState(false)
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background text-foreground antialiased">
@@ -80,6 +82,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 </button>
               </div>
 
+              <button
+                type="button"
+                onClick={() => setPatchModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                title="Centro de Actualizaciones, Parches OTA y Backups Preventivos"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span className="hidden sm:inline">Actualizaciones &amp; Backups</span>
+                <span className="sm:hidden">Parches</span>
+              </button>
+
               <Badge
                 variant="outline"
                 className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
@@ -90,6 +103,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </Badge>
             </div>
           </header>
+
+          {/* Modal Central de Parches, Actualizaciones y Backups */}
+          <PatchAndBackupCenterModal
+            open={patchModalOpen}
+            onOpenChange={setPatchModalOpen}
+          />
 
           {/* Área de Contenido Principal con espaciado seguro para el Orbe flotante en móvil */}
           <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 md:pb-10 max-w-7xl w-full mx-auto space-y-6">

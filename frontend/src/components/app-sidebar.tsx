@@ -49,7 +49,9 @@ import {
   Lock,
   Palette,
   Mic,
+  RefreshCw,
 } from "lucide-react"
+import { PatchAndBackupCenterModal } from "@/components/system/PatchAndBackupCenterModal"
 
 // ─── Tipos de panel de diagnóstico forense ────────────────────────────
 type ForensicPanel = "hash" | "ocr" | "reportes" | "storage" | null
@@ -73,6 +75,7 @@ export function AppSidebar({
   const [activePanel, setActivePanel] = React.useState<ForensicPanel>(null);
   const [profileModalOpen, setProfileModalOpen] = React.useState(false);
   const [settingsTab, setSettingsTab] = React.useState<'perfil' | 'apariencia' | 'voz'>('perfil');
+  const [patchModalOpen, setPatchModalOpen] = React.useState(false);
 
   // Iniciales para el avatar
   const getInitials = (name?: string | null) => {
@@ -302,6 +305,19 @@ export function AppSidebar({
                     </div>
                   </DropdownMenuItem>
 
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setPatchModalOpen(true);
+                    }}
+                    className="gap-2 cursor-pointer text-xs py-2 px-2.5 rounded-lg hover:bg-accent focus:bg-accent"
+                  >
+                    <RefreshCw className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">Actualizaciones, Parches y Backups</span>
+                      <span className="text-[10px] text-muted-foreground">OTA Hot-Reload &bull; Snapshots</span>
+                    </div>
+                  </DropdownMenuItem>
+
                   <DropdownMenuSeparator className="my-1" />
 
                   <DropdownMenuItem
@@ -316,30 +332,43 @@ export function AppSidebar({
             </SidebarMenuItem>
           </SidebarMenu>
 
-          {/* Indicador PWA reactivo al estado real de conexión */}
-          <div className={`flex items-center gap-2 rounded-lg p-2 text-xs mt-1 group-data-[collapsible=icon]:hidden transition-colors ${
-            isOnline
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-              : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-          }`}>
-            {isOnline ? (
-              <Wifi className="h-4 w-4 text-emerald-500 shrink-0" />
-            ) : (
-              <WifiOff className="h-4 w-4 text-amber-500 shrink-0 animate-pulse" />
-            )}
-            <div className="truncate">
-              <p className="font-medium">
-                {isOnline ? "Conectado" : "Modo Offline"}
-              </p>
-              <p className="text-[10px] text-muted-foreground truncate">
-                {isOnline
-                  ? "Worker & Crypto Activos"
-                  : "Sin conexión — modo local"}
-              </p>
+          {/* Indicador PWA reactivo al estado real de conexión con acceso rápido a Parches */}
+          <div
+            onClick={() => setPatchModalOpen(true)}
+            className={`flex items-center justify-between gap-2 rounded-lg p-2 text-xs mt-1 group-data-[collapsible=icon]:hidden transition-colors cursor-pointer hover:opacity-90 ${
+              isOnline
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            }`}
+            title="Abrir Centro de Actualizaciones, Parches y Backups"
+          >
+            <div className="flex items-center gap-2 truncate">
+              {isOnline ? (
+                <Wifi className="h-4 w-4 text-emerald-500 shrink-0" />
+              ) : (
+                <WifiOff className="h-4 w-4 text-amber-500 shrink-0 animate-pulse" />
+              )}
+              <div className="truncate">
+                <p className="font-medium">
+                  {isOnline ? "Conectado" : "Modo Offline"}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {isOnline
+                    ? "Parches & Crypto Activos"
+                    : "Sin conexión — respaldo local"}
+                </p>
+              </div>
             </div>
+            <RefreshCw className="h-3 w-3 text-muted-foreground/60 shrink-0" />
           </div>
         </SidebarFooter>
       </Sidebar>
+
+      {/* Modal Centro de Actualizaciones, Parches y Backups */}
+      <PatchAndBackupCenterModal
+        open={patchModalOpen}
+        onOpenChange={setPatchModalOpen}
+      />
 
       {/* ─── Dialogs de diagnóstico forense ─────────────────────────── */}
 
