@@ -1,132 +1,209 @@
 # ELIS 5.0 — Entorno Local Inteligente y Seguro
 
-**Sistema de Inspección Inmutable, Ingesta Forense, OCR en Navegador y Generación de Fichas Técnicas Oficiales.**
+**Plataforma Cloud-Native para Gestión de Evidencias Forenses, Auditoría de Campo, OCR en Navegador y Generación de Fichas Técnicas de Inspección**
 
 ---
 
-## 🌟 Visión General
+## 1. Resumen Ejecutivo
 
-**ELIS 5.0** es una Progressive Web App (PWA) de nivel empresarial diseñada para operaciones de campo, supervisión de seguridad (HSE) e inspección técnica. Reemplaza el flujo manual y fragmentado de captura en campo, carpetas compartidas y edición en OneNote por un pipeline unificado, seguro y verificable criptográficamente.
+**ELIS 5.0** (Entorno Local Inteligente y Seguro) es una solución integral desarrollada para optimizar y estandarizar las operaciones de supervisión técnica, aseguramiento de calidad e inspecciones HSE (*Health, Safety & Environment*). 
 
-### Principios Fundamentales
-1. **Integridad Criptográfica en Cliente:** Cálculo instantáneo del hash **SHA-256** mediante la Web Crypto API (`crypto.subtle`) antes de consumir datos móviles o almacenamiento.
-2. **Privacidad y Sanitización Forense:** Eliminación automática de coordenadas GPS y metadatos sensibles mediante `exifr` conservando únicamente la marca de tiempo de captura (`DateTimeOriginal`).
-3. **Compresión Inteligente:** Generación local de miniaturas livianas en formato **WebP** antes de la subida a buckets inmutables de Supabase Storage.
-4. **OCR Desacoplado (Human-in-the-Loop):** Reconocimiento óptico de caracteres para fotochecks ejecutado en segundo plano con **Web Workers** (`tesseract.js`), preprocesamiento de contraste/escala de grises en Canvas y confirmación humana asistida por expresiones regulares.
-5. **Transacciones Atómicas (ACID):** Vinculación de evidencias a actividades operativas mediante funciones PostgreSQL RPC (`vincular_evidencia_atomica`) con triggers automáticos de auditoría.
-6. **Dictado por Voz en Campo:** Hook `useSpeech` integrado con la **Web Speech API** configurado en español peruano (`es-PE`) para dictado de observaciones con manos libres.
-7. **Fichas Técnicas A4 Inmutables:** Exportación nativa e impresión a PDF mediante `react-to-print` (`<InspectionReportTemplate />`) con membrete oficial, miniaturas, personal detectado y hashes SHA-256 impresos.
+La plataforma reemplaza los flujos tradicionales basados en carpetas compartidas, transferencias manuales no verificadas y registros en procesadores de texto, proporcionando un canal digital inmutable con garantías criptográficas de autenticidad, sanitización de datos sensibles en el origen y procesamiento analítico directamente en el dispositivo del inspector.
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## 2. Objetivos y Principios de Diseño
+
+1. **Integridad Criptográfica en Origen (Client-Side Integrity):**  
+   Antes de transmitir cualquier archivo a los servidores, el sistema calcula de forma determinista su huella digital mediante el algoritmo **SHA-256** utilizando la Web Crypto API (`crypto.subtle`). Esto permite la deduplicación instantánea en memoria y previene la alteración o reemplazo posterior de imágenes.
+
+2. **Privacidad y Sanitización Forense de Metadatos:**  
+   Durante la captura en campo, el motor de archivos analiza la cabecera EXIF para conservar exclusivamente la estampa temporal de origen (`DateTimeOriginal`). Todas las coordenadas de posicionamiento global (GPS) y metadatos no requeridos son purgados antes del almacenamiento.
+
+3. **Optimización de Transferencia de Datos:**  
+   El cliente genera una versión miniatura en formato **WebP** de alta compresión y bajo peso. El archivo original y la miniatura son transferidos a contenedores inmutables de almacenamiento, reduciendo el consumo de ancho de banda celular en zonas remotas.
+
+4. **Procesamiento Óptico Desacoplado (OCR Human-in-the-Loop):**  
+   La extracción de texto desde fotochecks y credenciales se realiza dentro del navegador del usuario aprovechando Web Workers y la biblioteca Tesseract.js. La interfaz implementa un enfoque de validación humana asistida donde los datos extraídos (nombres, apellidos, cargo) deben ser confirmados o corregidos por el inspector antes de su inserción en la base de datos.
+
+5. **Transacciones Atómicas y Registro Universal de Auditoría:**  
+   La asociación de evidencias a actividades operativas se ejecuta mediante funciones de procedimiento remoto (RPC en PostgreSQL), garantizando consistencia transaccional ACID. Cada evento del ciclo de vida se documenta de forma automática en una bitácora inmutable de auditoría.
+
+6. **Interacción por Voz en Campo (Web Speech API):**  
+   Incorpora dictado continuo por voz parametrizado para la variante lingüística `es-PE` (Español de Perú), permitiendo la captura de descripciones y hallazgos sin requerir el teclado en condiciones de campo complejas.
+
+7. **Generación de Fichas de Inspección Técnicas (A4 Inmutable):**  
+   El sistema renderiza un documento técnico estructurado en tamaño estándar A4 que consolida datos de la actividad, miniaturas fotográficas, resultados de verificación de personal y el código de integridad SHA-256 impreso, listo para impresión o exportación nativa a PDF.
+
+---
+
+## 3. Arquitectura del Sistema
+
+La solución está construida siguiendo el principio de capas limpias (*Clean Architecture*):
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 1. CAPA DE PRESENTACIÓN Y COMPONENTES (React 19 + TailwindCSS v4)      │
-│  - Páginas: Bandeja de Evidencias, Gestor de Actividades, Detalle      │
-│  - Modales & Canvas: <CropCanvas />, <OcrResultEditor />, <Modal />    │
-│  - Plantillas de Reporte: <InspectionReportTemplate />, <PdfExporter /> │
+│ 1. CAPA DE PRESENTACIÓN (React 19 + TailwindCSS v4)                    │
+│    • Vistas: Bandeja de Evidencias, Gestor de Actividades, Detalle     │
+│    • Componentes: <EvidenceCard />, <CropCanvas />, <Modal />          │
+│    • Plantillas Técnicas: <InspectionReportTemplate />, <PdfExporter />│
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Hooks Reactivos
+                                    │ Custom Hooks & Callbacks
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ 2. LÓGICA DE NEGOCIO Y WEB WORKERS (Navegador / Off-Main-Thread)        │
-│  - fileProcessor.ts: Hash SHA-256, sanitización EXIF, compresión WebP │
-│  - ocrClient.ts: Canvas B/N + Alto contraste, Tesseract.js Worker      │
-│  - useSpeech.ts: Web Speech API (es-PE) para dictado en campo         │
-│  - useEvidences.ts: Sincronización y filtros reactivos                 │
+│ 2. LÓGICA DE CLIENTE Y HILOS DE FONDO (Web Workers & Native APIs)      │
+│    • fileProcessor.ts: Hash SHA-256, purga EXIF y compresión WebP      │
+│    • ocrClient.ts: Filtros de imagen en Canvas y Tesseract Worker      │
+│    • useSpeech.ts: Reconocimiento de voz en tiempo real                │
+│    • useEvidences.ts: Sincronización y filtrado de estado              │
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Servicios POO Tipados
+                                    │ Servicios Tipados POO
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ 3. CAPA DE ACCESO A DATOS (TypeScript + BaseSupabaseService<T>)         │
-│  - BaseSupabaseService: CRUD genérico reutilizable y paginación        │
-│  - EvidenceService: Ingesta forense, validación SHA y Storage          │
-│  - ActivityService: Gestión de actividades y RPC vincular_evidencia    │
-│  - OcrService: Persistencia y auditoría de validaciones humanas        │
+│ 3. CAPA DE ACCESO A DATOS (TypeScript POO)                             │
+│    • BaseSupabaseService<T>: Abstracción genérica CRUD y paginación    │
+│    • EvidenceService: Control de ingesta forense y Storage             │
+│    • ActivityService: Gestión de órdenes y ejecución de RPC atómico    │
+│    • OcrService: Registro y trazabilidad de identificaciones humanas   │
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │ HTTPS (Supabase Client)
+                                    │ Protocolo HTTPS / WSS
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ 4. PERSISTENCIA Y REGLAS CLOUD-NATIVE (Supabase PostgreSQL + Storage)  │
-│  - Tablas: evidencias, actividades, vinculos, identificaciones        │
-│  - Triggers: public.fn_registrar_auditoria_universal() en public.auditoria│
-│  - RPC: public.vincular_evidencia_atomica() (Transacción ACID)         │
-│  - RLS: Políticas inmutables contra eliminación o alteración forense   │
+│ 4. PERSISTENCIA Y MOTOR DE REGLAS (Supabase Cloud-Native)              │
+│    • PostgreSQL: Tablas evidencias, actividades, vinculos, etc.        │
+│    • Row Level Security (RLS): Bloqueo estricto de borrado y alteración│
+│    • Triggers de Auditoría: fn_registrar_auditoria_universal()        │
+│    • Transacciones RPC: vincular_evidencia_atomica()                   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📦 Módulos Implementados
+## 4. Estructura del Proyecto
 
-| Módulo | Nombre | Descripción | Estado |
+```text
+ELIS_Vs1/
+├── .agents/                    # Reglas de arquitectura, backend y componentes UI
+├── supabase/                   # Definición de esquemas DDL, triggers y funciones RPC
+│   └── migrations/
+│       └── 20261013000000_elis_core_schema.sql
+├── frontend/                   # Aplicación cliente React + Vite
+│   ├── public/                 # Recursos públicos y configuración PWA
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── evidence/       # Subida, tarjetas y cuadrícula de evidencias
+│   │   │   ├── ocr/            # Canvas de recorte y confirmación humana
+│   │   │   ├── reports/        # Plantilla A4 formal y exportador react-to-print
+│   │   │   └── ui/             # Componentes base: StatusBadge, Modal
+│   │   ├── hooks/              # useEvidences, useSpeech
+│   │   ├── lib/                # Cliente Supabase singleton inicializado
+│   │   ├── pages/              # ActivitiesManager, ActivityDetail
+│   │   ├── services/           # BaseSupabaseService, EvidenceService, ActivityService, OcrService
+│   │   ├── tests/              # Pruebas unitarias y de integración (Vitest)
+│   │   ├── types/              # Tipado TypeScript derivado del esquema de base de datos
+│   │   └── utils/              # Procesamiento de archivos, criptografía y OCR
+│   ├── package.json            # Dependencias del proyecto
+│   └── vite.config.ts          # Configuración del empaquetador Vite
+├── ARQUITECTURA_Y_ESPECIFICACION_MODERNA.md  # Especificación técnica del sistema
+├── PLAN_MAESTRO.md             # Matriz de estado de desarrollo por módulos
+└── README.md                   # Documentación principal del repositorio
+```
+
+---
+
+## 5. Módulos y Estado de Implementación
+
+| Módulo | Denominación | Componentes y Alcance Técnico | Estado |
 | :---: | :--- | :--- | :---: |
-| **Módulo 1** | Capa de Datos y Servicios Base | Cliente Supabase, tipos TypeScript estrictos, `BaseSupabaseService`, `EvidenceService`, `ActivityService`. | `COMPLETADO` |
-| **Módulo 2** | Motor de Archivos Local | `fileProcessor.ts`: Deduplicación SHA-256, limpieza EXIF sin GPS, compresión WebP y subida al Bucket. | `COMPLETADO` |
-| **Módulo 3** | UI Base y Bandeja de Ingesta | Componentes atómicos `<StatusBadge />`, `<EvidenceCard />`, `<EvidenceUploader />`, filtros y estados de carga. | `COMPLETADO` |
-| **Módulo 4** | Recorte y OCR en Navegador | `<CropCanvas />` con `react-easy-crop`, worker con `tesseract.js`, regex de nombres/cargos y `<OcrResultEditor />`. | `COMPLETADO` |
-| **Módulo 5** | Actividades, Vínculos y PDF | CRUD en `ActivitiesManager`, dictado `useSpeech`, vinculación atómica en `ActivityDetail`, ficha A4 `<InspectionReportTemplate />` y exportador `<PdfExporter />`. | `COMPLETADO` |
+| **01** | Capa de Datos y Servicios Base | Definición de tipos TypeScript (`Database`), implementación de `BaseSupabaseService<T>`, `EvidenceService` y `ActivityService`. | Completado |
+| **02** | Motor de Archivos Local | Deduplicación por hash SHA-256 (`crypto.subtle`), eliminación de etiquetas de geolocalización, generación de miniaturas WebP y carga en Storage. | Completado |
+| **03** | UI Base y Bandeja de Ingesta | Componentes modulares `<StatusBadge />`, `<EvidenceCard />`, `<EvidenceUploader />`, vista en cuadrícula y filtros por estado de procesamiento. | Completado |
+| **04** | Recorte y OCR en Navegador | Lienzo de recorte táctil `<CropCanvas />`, preprocesamiento Canvas (filtro B/N y contraste), Web Worker Tesseract.js y formulario de confirmación `<OcrResultEditor />`. | Completado |
+| **05** | Actividades, Vínculos y Fichas PDF | Gestión CRUD en `ActivitiesManager`, dictado con `useSpeech`, vinculación atómica mediante RPC, ficha A4 `<InspectionReportTemplate />` y exportación con `react-to-print`. | Completado |
 
 ---
 
-## 🛠️ Tecnologías y Librerías
+## 6. Pila Tecnológica
 
-- **Frontend Core:** [React 19](https://react.dev/), [TypeScript 5/6](https://www.typescriptlang.org/), [Vite](https://vitejs.dev/)
-- **Estilos:** [TailwindCSS v4](https://tailwindcss.com/)
-- **Criptografía & Imágenes:** Web Crypto API (`crypto.subtle`), [exifr](https://github.com/MikeKovarik/exifr), [browser-image-compression](https://github.com/Donaldcwl/browser-image-compression)
-- **OCR en Navegador:** [Tesseract.js](https://tesseract.projectnaptha.com/) v7, HTML5 Canvas API, [react-easy-crop](https://github.com/ValentinH/react-easy-crop)
-- **Voz:** Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`)
-- **Reportes & Exportación:** [react-to-print](https://github.com/MatthewHerbst/react-to-print)
-- **Backend as a Service:** [Supabase](https://supabase.com/) (PostgreSQL 15+, Storage, Auth, RPC)
-- **Testing:** [Vitest](https://vitest.dev/), [@testing-library/react](https://testing-library.com/)
+### Frontend y Entorno de Ejecución
+- **Framework:** React 19 (React DOM 19)
+- **Lenguaje:** TypeScript 5.9 / 6.0
+- **Herramienta de Compilación:** Vite 8.3 con soporte de HMR
+- **Estilos:** TailwindCSS v4
+
+### Procesamiento Local y Análisis
+- **Criptografía:** Web Crypto API (`crypto.subtle`)
+- **Manipulación de Metadatos EXIF:** Exifr
+- **Compresión de Imágenes:** Browser Image Compression
+- **Reconocimiento Óptico de Caracteres (OCR):** Tesseract.js v7 en Web Worker
+- **Reconocimiento de Voz:** Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`)
+- **Exportación e Impresión:** react-to-print v3
+
+### Backend y Persistencia
+- **Plataforma:** Supabase Cloud-Native
+- **Base de Datos:** PostgreSQL 15+ con extensiones relacionales
+- **Seguridad:** Row Level Security (RLS) y funciones plpgsql `SECURITY DEFINER`
+- **Almacenamiento:** Supabase Storage (Bucket `evidencias`)
+
+### Pruebas Automatizadas y Calidad
+- **Framework de Pruebas:** Vitest v4
+- **Testing de Componentes:** React Testing Library, JSDOM, Jest DOM
+- **Linter:** Oxlint
 
 ---
 
-## 🚀 Puesta en Marcha Local
+## 7. Instrucciones de Instalación y Ejecución
 
 ### Prerrequisitos
-- Node.js 18+ o superior
-- Gestor de paquetes `npm`
+- Node.js versión 18.18 o superior
+- Administrador de paquetes `npm`
 
-### 1. Clonar el repositorio
+### Paso 1: Clonar el Repositorio
 ```bash
 git clone https://github.com/Tiburonchin/ELIS_Vs1.git
 cd ELIS_Vs1
 ```
 
-### 2. Configuración de Variables de Entorno
-Crea un archivo `.env` en la raíz o en `frontend/.env` basado en `.env.example`:
+### Paso 2: Configurar las Variables de Entorno
+Cree un archivo `.env` en la raíz del subdirectorio `frontend/` tomando como referencia el archivo `.env.example`:
+
 ```env
-VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=tu-anon-key-de-supabase
+VITE_SUPABASE_URL=https://<tu-identificador-de-proyecto>.supabase.co
+VITE_SUPABASE_ANON_KEY=<tu-clave-anonima-publica>
 ```
 
-### 3. Instalación de dependencias
+### Paso 3: Instalar Dependencias
 ```bash
 cd frontend
 npm install
 ```
 
-### 4. Ejecución del Servidor de Desarrollo
+### Paso 4: Iniciar el Servidor de Desarrollo
 ```bash
 npm run dev
 ```
-La aplicación estará disponible en `http://localhost:5173/`.
+La aplicación estará disponible localmente en `http://localhost:5173/`.
 
-### 5. Ejecución de Pruebas Unitarias
+### Paso 5: Ejecutar la Suite de Pruebas
 ```bash
 npm test
 ```
+Ejecuta la totalidad de pruebas unitarias sobre servicios, lógica de cálculo, hooks y componentes de interfaz.
 
-### 6. Compilación de Producción (Typecheck + Bundle)
+### Paso 6: Compilar para Producción
 ```bash
 npm run build
 ```
+Realiza la verificación estricta de tipos (`tsc -b`) y compila el paquete optimizado en la carpeta `frontend/dist/`.
 
 ---
 
-## 🔒 Estándares de Seguridad y Calidad
+## 8. Consideraciones Forenses y de Seguridad
 
-- **TypeScript Estricto:** Toda la base de código compila con `tsc -b` sin errores (`strict: true`).
-- **Human-in-the-Loop:** Ningún texto extraído por OCR se persiste sin previa confirmación y firma de auditoría por el usuario.
-- **Inmutabilidad:** Las evidencias subidas no se modifican ni se eliminan; el historial de estados y asociaciones queda auditado en PostgreSQL mediante disparadores universales.
-- **Auditoría Forense:** Cada reporte generado cuenta con el Hash SHA-256 visible para cotejo contra peritaje digital.
+- **Inmutabilidad de Evidencias:** Las reglas de base de datos prohíben operaciones directas de eliminación (`DELETE`) sobre la tabla de evidencias y sus correspondientes archivos en almacenamiento. Toda actualización se registra mediante el trigger universal en la tabla de auditoría.
+- **Transaccionalidad en Vinculaciones:** La asociación entre evidencia y actividad es gestionada por la función `vincular_evidencia_atomica`, garantizando que la actualización del estado y la creación de la relación se consoliden de forma atómica.
+- **Validación Humana Obligatoria:** Las lecturas automáticas de texto de fotochecks no son consideradas definitivas hasta que un usuario autenticado verifique y confirme manualmente los campos correspondientes.
+- **Trazabilidad:** Cada ficha impresa incluye la hora de generación, datos del emisor y el Hash SHA-256 de cada fotografía para permitir su verificación forense contra peritajes posteriores.
+
+---
+
+## 9. Licencia
+
+Este proyecto se distribuye bajo los términos y condiciones de uso establecidos para el entorno institucional y operativo de la organización.
