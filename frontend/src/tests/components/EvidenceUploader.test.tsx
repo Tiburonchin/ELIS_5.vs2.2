@@ -85,7 +85,7 @@ describe('EvidenceUploader Component', () => {
         mime_type: 'image/jpeg',
         fecha_captura: '2026-10-13T12:00:00.000Z',
         fecha_ingesta: '2026-10-13T12:05:00.000Z',
-        estado: 'pendiente',
+        estado: 'pendiente' as const,
         metadatos_json: null,
         subido_por: null,
       },

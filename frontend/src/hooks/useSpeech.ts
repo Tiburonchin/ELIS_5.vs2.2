@@ -83,6 +83,11 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechResult {
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const isSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 
+  const onResultRef = useRef(onResult);
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
+
   // Inicializar la instancia de SpeechRecognition
   useEffect(() => {
     if (!isSupported) {
@@ -119,7 +124,7 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechResult {
       if (finalStr) {
         setTranscript((prev) => {
           const updated = prev ? `${prev} ${finalStr.trim()}` : finalStr.trim();
-          if (onResult) onResult(updated);
+          if (onResultRef.current) onResultRef.current(updated);
           return updated;
         });
       }
@@ -150,7 +155,7 @@ export function useSpeech(options: UseSpeechOptions = {}): UseSpeechResult {
         // En caso de que ya estuviera detenido
       }
     };
-  }, [isSupported, lang, continuous, interimResults, onResult]);
+  }, [isSupported, lang, continuous, interimResults]);
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current || !isSupported) {

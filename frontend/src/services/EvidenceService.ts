@@ -26,40 +26,49 @@ export class EvidenceService extends BaseSupabaseService<
    * Busca si existe una evidencia previamente registrada por su hash SHA-256
    */
   async getByHash(hash: string): Promise<EvidenciaRow | null> {
-    const { data, error } = await supabase
-      .from('evidencias')
-      .select('*')
-      .eq('hash_sha256', hash)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('evidencias')
+        .select('*')
+        .eq('hash_sha256', hash)
+        .maybeSingle();
 
-    if (error) {
+      if (error) {
+        this.handleDatabaseError(error, `getByHash (${hash})`);
+      }
+
+      return data as EvidenciaRow | null;
+    } catch (error) {
       console.error('[EvidenceService] Error buscando por hash:', error);
       throw error;
     }
-
-    return data;
   }
 
   /**
    * Obtiene evidencias filtradas por estado (pendiente, vinculada, archivada, error)
    */
   async getByEstado(estado: 'pendiente' | 'vinculada' | 'archivada' | 'error'): Promise<EvidenciaRow[]> {
-    const { data, error } = await supabase
-      .from('evidencias')
-      .select('*')
-      .eq('estado', estado)
-      .order('fecha_ingesta', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('evidencias')
+        .select('*')
+        .eq('estado', estado)
+        .order('fecha_ingesta', { ascending: false });
 
-    if (error) {
+      if (error) {
+        this.handleDatabaseError(error, `getByEstado (${estado})`);
+      }
+
+      return (data as EvidenciaRow[]) || [];
+    } catch (error) {
       console.error(`[EvidenceService] Error obteniendo evidencias por estado (${estado}):`, error);
       throw error;
     }
-
-    return data || [];
   }
 
   /**
    * Procesa, valida duplicados criptográficos, sube a Supabase Storage y registra en la BD.
+   * Asigna explícitamente subido_por = auth.uid() para garantizar el cumplimiento de políticas RLS.
    */
   async uploadAndRegisterEvidence(
     file: File,
@@ -79,12 +88,15 @@ export class EvidenceService extends BaseSupabaseService<
       };
     }
 
-    // 3. Preparación de rutas en Storage
+    // 3. Captura del ID de usuario autenticado activo
+    const currentUserId = await this.getCurrentUserId();
+
+    // 4. Preparación de rutas en Storage
     const ext = file.name.split('.').pop() || 'jpg';
     const originalStoragePath = `originals/${hashSHA256}.${ext}`;
     const thumbStoragePath = `thumbs/${hashSHA256}_thumb.webp`;
 
-    // 4. Subida del archivo original
+    // 5. Subida del archivo original
     const { error: uploadOriginalError } = await supabase.storage
       .from(bucketName)
       .upload(originalStoragePath, file, {
@@ -97,7 +109,7 @@ export class EvidenceService extends BaseSupabaseService<
       throw uploadOriginalError;
     }
 
-    // 5. Subida de la miniatura WebP
+    // 6. Subida de la miniatura WebP
     const { error: uploadThumbError } = await supabase.storage
       .from(bucketName)
       .upload(thumbStoragePath, thumbnailFile, {
@@ -109,7 +121,7 @@ export class EvidenceService extends BaseSupabaseService<
       console.warn('[EvidenceService] Advertencia al subir miniatura:', uploadThumbError);
     }
 
-    // 6. Registro en la base de datos (public.evidencias)
+    // 7. Registro en la base de datos (public.evidencias) con subido_por = auth.uid()
     const newRecord: EvidenciaInsert = {
       nombre_archivo: file.name,
       ruta_storage: originalStoragePath,
@@ -122,6 +134,7 @@ export class EvidenceService extends BaseSupabaseService<
       metadatos_json: {
         safe_exif: safeExif,
       },
+      subido_por: currentUserId ?? null,
     };
 
     const evidence = await this.create(newRecord);

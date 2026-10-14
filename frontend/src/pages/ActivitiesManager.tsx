@@ -48,15 +48,23 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingActivity, setEditingActivity] = useState<ActividadRow | null>(null);
 
-  // Campos del formulario
-  const [formData, setFormData] = useState({
+  // Campos del formulario con tipos estrictos alineados a Database['public']['Tables']['actividades']
+  const [formData, setFormData] = useState<{
+    codigo_referencia: string;
+    tipo_actividad: 'INSPECCION' | 'CAPACITACION' | 'AUDITORIA' | 'AMONESTACION';
+    ubicacion: string;
+    fecha_operacion: string;
+    responsable_nombre: string;
+    descripcion: string;
+    estado_reporte: 'pendiente' | 'exportada' | 'publicada';
+  }>({
     codigo_referencia: '',
-    tipo_actividad: 'inspeccion_rutinaria',
+    tipo_actividad: 'INSPECCION',
     ubicacion: '',
     fecha_operacion: new Date().toISOString().split('T')[0],
     responsable_nombre: '',
     descripcion: '',
-    estado_reporte: 'borrador',
+    estado_reporte: 'pendiente',
   });
 
   const [saving, setSaving] = useState<boolean>(false);
@@ -111,12 +119,12 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     const year = new Date().getFullYear();
     setFormData({
       codigo_referencia: `ACT-${year}-${randomSuffix}`,
-      tipo_actividad: 'inspeccion_rutinaria',
+      tipo_actividad: 'INSPECCION',
       ubicacion: '',
       fecha_operacion: new Date().toISOString().split('T')[0],
       responsable_nombre: '',
       descripcion: '',
-      estado_reporte: 'borrador',
+      estado_reporte: 'pendiente',
     });
     resetTranscript();
     setFormError(null);
@@ -509,14 +517,13 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
               </label>
               <select
                 value={formData.tipo_actividad}
-                onChange={(e) => setFormData({ ...formData, tipo_actividad: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, tipo_actividad: e.target.value as 'INSPECCION' | 'CAPACITACION' | 'AUDITORIA' | 'AMONESTACION' })}
                 className="w-full h-9 px-3 py-1 text-xs rounded-md border border-input bg-background text-foreground shadow-xs focus:ring-1 focus:ring-ring focus:outline-none"
               >
-                <option value="inspeccion_rutinaria">Inspección Rutinaria</option>
-                <option value="supervision_seguridad">Supervisión de Seguridad</option>
-                <option value="auditoria_campo">Auditoría en Campo</option>
-                <option value="mantenimiento_preventivo">Mantenimiento Preventivo</option>
-                <option value="incidente_operativo">Incidente Operativo</option>
+                <option value="INSPECCION">Inspección de Seguridad</option>
+                <option value="CAPACITACION">Capacitación / Charla</option>
+                <option value="AUDITORIA">Auditoría en Campo</option>
+                <option value="AMONESTACION">Registro de Amonestación (F-128)</option>
               </select>
             </div>
 

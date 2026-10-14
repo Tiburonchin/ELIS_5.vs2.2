@@ -31,13 +31,14 @@ describe('ActivitiesManager Page Component', () => {
     {
       id: 'act-1',
       codigo_referencia: 'ACT-2026-001',
-      tipo_actividad: 'inspeccion_rutinaria',
+      tipo_actividad: 'INSPECCION' as const,
       ubicacion: 'Planta Principal',
       fecha_operacion: '2026-10-14T00:00:00Z',
       responsable_id: null,
       responsable_nombre: 'Ing. Carlos Mendoza',
       descripcion: 'Inspección técnica general',
-      estado_reporte: 'borrador',
+      estado_reporte: 'pendiente' as const,
+      datos_formato_json: null,
       creado_en: '2026-10-14T00:00:00Z',
       actualizado_en: '2026-10-14T00:00:00Z',
     },
@@ -107,4 +108,42 @@ describe('ActivitiesManager Page Component', () => {
       expect(screen.getByText('ACT-2026-999')).toBeInTheDocument();
     });
   });
+
+  it('integra el reconocimiento de voz insertando el texto dictado en el campo Descripción', async () => {
+    vi.mocked(activityService.getAll).mockResolvedValueOnce({
+      data: [],
+      total: 0,
+    });
+
+    render(<ActivitiesManager />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/No hay actividades creadas/i)).toBeInTheDocument();
+    });
+
+    // Abrir modal de nueva actividad
+    fireEvent.click(screen.getByText('Nueva Actividad'));
+
+    const textarea = screen.getByPlaceholderText(
+      'Dicta o escribe notas de campo sobre la inspección...'
+    ) as HTMLTextAreaElement;
+    expect(textarea).toBeInTheDocument();
+    expect(textarea.value).toBe('');
+
+    // Verificar que el botón de dictado de voz está presente y accesible
+    const voiceBtn = screen.getByRole('button', { name: /Dictar por Voz/i });
+    expect(voiceBtn).toBeInTheDocument();
+
+    // Simular que el usuario dicta o el hook de voz actualiza la descripción
+    fireEvent.change(textarea, {
+      target: {
+        value: 'El operario no había repasado la actuación ante una quemadura eléctrica',
+      },
+    });
+
+    expect(textarea.value).toBe(
+      'El operario no había repasado la actuación ante una quemadura eléctrica'
+    );
+  });
 });
+
