@@ -24,6 +24,7 @@ import {
   PA_PERU_INFO,
   CATALOGO_F120,
   crearDemoF120LlerenaRios,
+  crearDemoF128Amonestacion,
   MOTIVOS_AMONESTACION,
   NIVELES_RIESGO,
   SANCIONES_RISST,
@@ -344,6 +345,28 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
     setF120Data(demo);
     setNotification({
       message: '¡Caso Real de Inspección HSE (Llerena Ríos 05/10/2026) cargado con éxito! (Backup de seguridad creado)',
+      type: 'success',
+    });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Botón: Cargar Caso Demo Amonestación (HSE-EL-F-128) con Backup Preventivo Automático
+  const handleCargarDemoF128 = async () => {
+    try {
+      await patchAndBackupService.createSafetyBackup(
+        'PRE_SOBRESCRITURA_ACTIVIDAD',
+        currentActivity.id,
+        f128Data as any,
+        `Backup automático antes de cargar Caso Demo F-128 en actividad ${currentActivity.codigo_referencia}`
+      );
+    } catch (e) {
+      console.warn('[ActivityDetail] Respaldo preventivo no bloqueante:', e);
+    }
+
+    const demo = crearDemoF128Amonestacion();
+    setF128Data(demo);
+    setNotification({
+      message: '¡Caso Demo de Amonestación HSE-EL-F-128 cargado con éxito! (Backup de seguridad creado)',
       type: 'success',
     });
     setTimeout(() => setNotification(null), 4000);
@@ -729,7 +752,7 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
 
         {/* Acciones principales de cabecera: ancho completo en móvil */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-          {!isAmonestacion && (
+          {!isAmonestacion ? (
             <Button
               type="button"
               variant="outline"
@@ -740,6 +763,18 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <span>Cargar Caso Real (Llerena Ríos)</span>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCargarDemoF128}
+              className="cursor-pointer gap-1.5 text-xs font-semibold border-destructive/40 hover:bg-destructive/10 text-destructive w-full sm:w-auto justify-center"
+              title="Cargar automáticamente el caso demo oficial de Amonestación HSE-EL-F-128"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-destructive shrink-0" />
+              <span>Cargar Caso Demo F-128</span>
             </Button>
           )}
 

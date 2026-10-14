@@ -121,10 +121,10 @@ describe('Auditoría de Plantillas HSE Oficiales P.A. Perú (HSE-EL-F-120 y HSE-
     // Encabezado corporativo oficial P.A. Perú
     expect(screen.getAllByText(/PROFESIONALES ASOCIADOS/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(new RegExp(PA_PERU_INFO.ruc, 'i')).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/INSPECCIÓN DE SEGURIDAD, SALUD EN EL TRABAJO Y MEDIO AMBIENTE/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/INSPECCIÓN DE HSE/i).length).toBeGreaterThanOrEqual(1);
 
     // Secciones del catálogo oficial F120
-    expect(screen.getAllByText(/INSTALACION \/ ESTRUCTURA \/ ALMACEN/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/INSTALACION\/ESTRUCTURA\/ALMACEN/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/INSTRUCCIÓN PREVIA EN CAMPO/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/EQUIPOS DE PROTECCIÓN PERSONAL/i).length).toBeGreaterThanOrEqual(1);
 
@@ -134,6 +134,7 @@ describe('Auditoría de Plantillas HSE Oficiales P.A. Perú (HSE-EL-F-120 y HSE-
 
     // Control de páginas (Páginas estructuradas del documento)
     expect(screen.getByText('1 de 4')).toBeInTheDocument();
+    expect(screen.getByText('2 de 4')).toBeInTheDocument();
     expect(screen.getByText('3 de 4')).toBeInTheDocument();
     expect(screen.getByText('4 de 4')).toBeInTheDocument();
   });
@@ -169,12 +170,12 @@ describe('Auditoría de Plantillas HSE Oficiales P.A. Perú (HSE-EL-F-120 y HSE-
     // 4. Medida inmediata
     expect(screen.getByText(/Paralización de la labor y entrega inmediata de EPP/i)).toBeInTheDocument();
 
-    // 5. Sanción aplicada (Suspensión 3 días)
-    expect(screen.getByText(/02\. Suspensión \(3 días\)/i)).toBeInTheDocument();
+    // 5. Sanción aplicada (Suspensión de días)
+    expect(screen.getByText(/SUSPENSION DE/i)).toBeInTheDocument();
 
     // 6. Firmas de validación (3 casillas oficiales)
-    expect(screen.getByText('REALIZADO POR')).toBeInTheDocument();
-    expect(screen.getByText('APROBADO POR')).toBeInTheDocument();
-    expect(screen.getByText(/ACEPTADO POR \(TRABAJADOR\)/i)).toBeInTheDocument();
+    expect(screen.getByText('REALIZADO POR:')).toBeInTheDocument();
+    expect(screen.getByText('APROBADO POR:')).toBeInTheDocument();
+    expect(screen.getByText('ACEPTADO POR:')).toBeInTheDocument();
   });
 });

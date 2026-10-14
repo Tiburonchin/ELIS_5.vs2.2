@@ -22,6 +22,8 @@ export interface PdfExporterProps {
   inspectorCargo?: string;
   onAfterPrint?: () => void;
   className?: string;
+  /** Permite forzar el formato o alternarlo dinámicamente */
+  forcedFormat?: 'INSPECCION' | 'AMONESTACION';
 }
 
 export const PdfExporter: React.FC<PdfExporterProps> = ({
@@ -32,16 +34,26 @@ export const PdfExporter: React.FC<PdfExporterProps> = ({
   inspectorCargo,
   onAfterPrint,
   className = '',
+  forcedFormat,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
+  const [activeFormat, setActiveFormat] = useState<'INSPECCION' | 'AMONESTACION'>(
+    forcedFormat || (actividad.tipo_actividad === 'AMONESTACION' ? 'AMONESTACION' : 'INSPECCION')
+  );
 
-  const isAmonestacion = actividad.tipo_actividad === 'AMONESTACION';
+  useEffect(() => {
+    if (forcedFormat) {
+      setActiveFormat(forcedFormat);
+    }
+  }, [forcedFormat]);
+
+  const isAmonestacion = activeFormat === 'AMONESTACION';
   const documentTitle = isAmonestacion
-    ? `Amonestacion_HSE_EL_F_128_${actividad.codigo_referencia}`
-    : `Checklist_Inspeccion_${actividad.codigo_referencia}`;
+    ? `Amonestacion_HSE_EL_F_128_${actividad.codigo_referencia || 'F128'}`
+    : `Inspeccion_HSE_EL_F_120_${actividad.codigo_referencia || 'F120'}`;
 
-  // Resuelve URLs de Storage de forma dual (Signed URLs con fallback a Public URLs y limpieza de prefijo)
+  // Resuelve URLs de Storage de forma dual
   useEffect(() => {
     let isMounted = true;
     const fetchUrls = async () => {
@@ -70,18 +82,21 @@ export const PdfExporter: React.FC<PdfExporterProps> = ({
     pageStyle: `
       @page {
         size: A4 portrait;
-        margin: 12mm 10mm 15mm 10mm;
+        margin: 8mm;
       }
       @media print {
-        body {
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
+        html, body {
+          width: 210mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
           background: white !important;
           color: black !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
-        .page-break-inside-avoid {
-          break-inside: avoid !important;
+        .page-container {
           page-break-inside: avoid !important;
+          break-inside: avoid !important;
         }
       }
     `,
@@ -89,7 +104,7 @@ export const PdfExporter: React.FC<PdfExporterProps> = ({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Botón de Acción Principal para Exportar */}
+      {/* Botón de Acción Principal y Selector de Modelo para Exportar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border bg-muted/30 print:hidden">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg ${isAmonestacion ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
@@ -97,33 +112,63 @@ export const PdfExporter: React.FC<PdfExporterProps> = ({
           </div>
           <div>
             <h4 className="text-xs font-bold text-foreground uppercase tracking-tight">
-              {isAmonestacion ? 'Formato Oficial HSE-EL-F-128' : 'Checklist de Inspección HSE (15 Secciones)'}
+              {isAmonestacion ? 'Formato Oficial HSE-EL-F-128 (1 Página)' : 'Formato Oficial HSE-EL-F-120 (4 Páginas)'}
             </h4>
             <p className="text-[11px] text-muted-foreground">
-              Listo para impresión directa o descarga en PDF formato A4 de alta fidelidad.
+              {isAmonestacion
+                ? 'Registro de Amonestación laboral con estructura tabular normativa de P.A. Perú.'
+                : 'Inspección de HSE en doble columna, levantamiento de hallazgos y evidencia fotográfica.'}
             </p>
           </div>
         </div>
 
-        <Button
-          type="button"
-          onClick={() => handlePrint()}
-          className="cursor-pointer gap-2 text-xs font-semibold h-9 shrink-0"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Descargar / Imprimir Reporte Oficial</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Selector interactivo de plantilla */}
+          <div className="inline-flex rounded-lg border border-border bg-background p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setActiveFormat('INSPECCION')}
+              className={`px-3 py-1 rounded-md font-medium transition-all ${
+                !isAmonestacion
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              F-120 Inspección (4 Págs)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFormat('AMONESTACION')}
+              className={`px-3 py-1 rounded-md font-medium transition-all ${
+                isAmonestacion
+                  ? 'bg-destructive text-destructive-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              F-128 Amonestación (1 Pág)
+            </button>
+          </div>
+
+          <Button
+            type="button"
+            onClick={() => handlePrint()}
+            className="cursor-pointer gap-2 text-xs font-semibold h-9 shrink-0 shadow-sm"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Descargar / Imprimir PDF Oficial</span>
+          </Button>
+        </div>
       </div>
 
       {/* Contenedor de la Ficha: Visible como previsualización interactiva y fuente de impresión */}
-      <div className="overflow-x-auto bg-card p-2 sm:p-6 rounded-xl border border-border">
-        <div ref={contentRef}>
+      <div className="overflow-x-auto bg-gray-100 p-2 sm:p-6 rounded-xl border border-border flex justify-center">
+        <div ref={contentRef} className="shadow-2xl print:shadow-none bg-white">
           {isAmonestacion ? (
             <AmonestacionReportTemplate
               activity={actividad}
               evidences={evidenciasVinculadas}
               inspectorName={inspectorName || actividad.responsable_nombre}
-              inspectorCargo={inspectorCargo || 'Inspector HSE'}
+              inspectorCargo={inspectorCargo || 'SUPERVISOR HSE'}
               thumbUrls={thumbUrls}
             />
           ) : (
@@ -131,7 +176,7 @@ export const PdfExporter: React.FC<PdfExporterProps> = ({
               activity={actividad}
               evidences={evidenciasVinculadas}
               inspectorName={inspectorName || actividad.responsable_nombre}
-              inspectorCargo={inspectorCargo || 'Inspector HSE'}
+              inspectorCargo={inspectorCargo || 'SUPERVISOR HSE'}
               thumbUrls={thumbUrls}
             />
           )}

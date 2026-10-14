@@ -1,0 +1,722 @@
+[
+  {
+    "id": 1,
+    "nombre": "INSTALACION/ESTRUCTURA/ALMACEN",
+    "items": [
+      {
+        "codigo": "1.1",
+        "descripcion": "El suelo/piso y pasillo se encuentra limpio, sin grietas y sin obstáculos.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.2",
+        "descripcion": "Las paredes se encuentran limpias y sin grietas.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.3",
+        "descripcion": "Las ventanas se encuentran limpias, sin fisuras o rotas.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.4",
+        "descripcion": "Las escaleras se encuentran limpias y sin obstáculos",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.5",
+        "descripcion": "Los peldaños de las escaleras tienen cinta antideslizante (adheridas y sin roturas)",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.6",
+        "descripcion": "El techo se encuentra, se encuentran libre, grietas o sin objetos colgando",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.7",
+        "descripcion": "Las herramientas o equipos se encuentran clasificados y ordenados.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.8",
+        "descripcion": "Las instalaciones eléctricas como son: interruptores, tomacorrientes y luminarias, se encuentran sin daño o alteración.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.9",
+        "descripcion": "La zona designada al grupo electrógeno cuenta con Rombo NFPA y con Kit de contención de derrames",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.10",
+        "descripcion": "El piso donde se encuentran los equipos de poder de combustible se encuentra en piso de cemento pulido y no tiene grietas ni rajaduras o bandeja antiderrames.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.11",
+        "descripcion": "La zona de almacenamiento de residuos peligrosos se encuentra impermeabilizada, ventilada y techada",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.12",
+        "descripcion": "Las bobinas de cable con grasa se encuentran sin presencia de pérdidas de grasa visible sobre el piso",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.13",
+        "descripcion": "Personal cuenta con medios de comunicación (teléfono) en caso de emergencia.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.14",
+        "descripcion": "El sistema de control para la iluminación tiene buen funcionamiento",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.15",
+        "descripcion": "Los gabinetes, estantes, archivadores se encuentran anclados a la pared.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.16",
+        "descripcion": "La vía de tránsito peatonal se encuentra libre de obstáculos",
+        "defaultMark": null
+      },
+      {
+        "codigo": "1.17",
+        "descripcion": "Los cables de computadoras, impresoras, etc., están atados y ordenados",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "nombre": "PREVENCIÓN Y CONTROL DE INCENDIOS Y PRIMEROS AUXILIOS",
+    "items": [
+      {
+        "codigo": "2.1",
+        "descripcion": "Los extintores cuentan con tarjeta de inspección y registro mensual",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.2",
+        "descripcion": "Los extintores cuentan con precinto de seguridad sin alteración",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.3",
+        "descripcion": "Los gabinetes de extintores se encuentran sin grietas, sin oxido y sin corrosión",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.4",
+        "descripcion": "Los extintores se encuentran libres de obstáculos para ser retirados y utilizados",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.5",
+        "descripcion": "Los equipos contra incendio cuentan con señalética y son visibles",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.6",
+        "descripcion": "La señalética de los extintores se encuentra sin daño o alteración.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.7",
+        "descripcion": "La señalética de evacuación se encuentra sin daño o alteración",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.8",
+        "descripcion": "Se cuenta con un mapa de ruta de evacuación y es legible",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.9",
+        "descripcion": "El botiquín se encuentra con tarjeta de inspección y registro mensual",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.10",
+        "descripcion": "Las medicinas del botiquín registran su vigencia en el envase o empaque",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.11",
+        "descripcion": "Las salidas de emergencia o vías de evacuación se encuentran despejadas y señalizadas",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.12",
+        "descripcion": "Se cuenta con iluminación de emergencia en las vías de evacuación",
+        "defaultMark": null
+      },
+      {
+        "codigo": "2.13",
+        "descripcion": "La camilla se encuentra señalizada y limpia",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "nombre": "COMEDOR",
+    "items": [
+      {
+        "codigo": "3.1",
+        "descripcion": "Las sillas y mesas se encuentran limpias",
+        "defaultMark": null
+      },
+      {
+        "codigo": "3.2",
+        "descripcion": "Los pisos se encuentran limpios.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "3.3",
+        "descripcion": "Los contenedores de residuos orgánicos se encuentran en un área alejada del almacenamiento de alimentos",
+        "defaultMark": null
+      },
+      {
+        "codigo": "3.4",
+        "descripcion": "Las tomas y corrientes del comedor se encuentran en buen estado.",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "nombre": "MEDIO AMBIENTE",
+    "items": [
+      {
+        "codigo": "4.1",
+        "descripcion": "Se cuenta con contenedores y bolsas de colores para la segregación de residuos sólidos.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "4.2",
+        "descripcion": "Los contenedores de residuos peligrosos se encuentran sobre una superficie que impida el contacto directo con el suelo.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "4.3",
+        "descripcion": "Los contenedores de residuos se encuentran rotulados y con tapas.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "4.4",
+        "descripcion": "Los contenedores de residuos se encuentran en zonas definidas para ellos y con techo de protección que evite su deterioro",
+        "defaultMark": null
+      },
+      {
+        "codigo": "4.5",
+        "descripcion": "El material excedente/ desmonte acopiado ha sido regado o cubierto con malla para evitar la dispersión de material particulado",
+        "defaultMark": null
+      },
+      {
+        "codigo": "4.6",
+        "descripcion": "Los empleados segregan y clasifican los residuos sólidos en contenedores de colores",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "nombre": "PRODUCTOS QUÍMICOS",
+    "items": [
+      {
+        "codigo": "5.1",
+        "descripcion": "Los productos químicos se encuentran rotulados.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "5.2",
+        "descripcion": "El lugar de almacenamiento de los productos químicos se encuentra con señalética, cercado y con ventilación.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "5.3",
+        "descripcion": "El lugar de almacenamiento de productos químicos cuenta con una superficie impermeabilizada o libre de obstáculos.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "5.4",
+        "descripcion": "Las sustancias han sido almacenadas considerando el cuadro de incompatibilidad con otras sustancias",
+        "defaultMark": null
+      },
+      {
+        "codigo": "5.5",
+        "descripcion": "Los recipientes de productos químicos e inflamables se encuentran señalizados (rombo NFPA, Sistema SGA símbolos de peligro)",
+        "defaultMark": null
+      },
+      {
+        "codigo": "5.6",
+        "descripcion": "Las hojas MSDS se encuentran en español, legibles y en el lugar de almacenamiento.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "5.7",
+        "descripcion": "Se cuenta con un Kit de contingencia antiderrame y libre de obstrucciones",
+        "defaultMark": null
+      },
+      {
+        "codigo": "5.8",
+        "descripcion": "Las áreas donde se almacenan materiales inflamables o donde las operaciones presentan riesgo de incendio cuentan con avisos de “No fumar, peligro de incendio”",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "nombre": "VESTIDORES Y DUCHAS",
+    "items": [
+      {
+        "codigo": "6.1",
+        "descripcion": "Los casilleros se encuentran sin signos de corrosión",
+        "defaultMark": null
+      },
+      {
+        "codigo": "6.2",
+        "descripcion": "Los pasadizos en vestuarios se mantienen limpios y sin obstáculos",
+        "defaultMark": null
+      },
+      {
+        "codigo": "6.3",
+        "descripcion": "Las duchas se encuentran limpias y libres de hongos",
+        "defaultMark": null
+      },
+      {
+        "codigo": "6.4",
+        "descripcion": "Los accesorios de ducha como: grifo toallero, jabonera, se encuentran en buenas condiciones libres de hongos y oxido",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "nombre": "ZONA DE TRABAJO",
+    "items": [
+      {
+        "codigo": "7.1",
+        "descripcion": "El área de trabajo se encuentra cercado con mallas, parantes y cinta de señalización",
+        "defaultMark": null
+      },
+      {
+        "codigo": "7.2",
+        "descripcion": "El área de trabajo cuenta con señales verticales preventivas y/o restrictivas",
+        "defaultMark": null
+      },
+      {
+        "codigo": "7.3",
+        "descripcion": "La zona de trabajo se encuentra libre de piedras, botellas, maderas, objetos punzantes en un radio mínimo de 10 metros",
+        "defaultMark": null
+      },
+      {
+        "codigo": "7.4",
+        "descripcion": "La vía de tránsito peatonal se encuentra definida y libre de obstáculos",
+        "defaultMark": null
+      },
+      {
+        "codigo": "7.5",
+        "descripcion": "La superficie de terreno donde se realiza actividades ha sido humedecida para evitar emisión de material particulado",
+        "defaultMark": null
+      },
+      {
+        "codigo": "7.6",
+        "descripcion": "Los letreros de señalización respetan la distancia correspondiente de un letrero a otro.",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "nombre": "EQUIPOS DE PROTECCIÓN PERSONAL",
+    "items": [
+      {
+        "codigo": "8.1",
+        "descripcion": "El empleado ha completado el check list de inspección de equipos de protección personal y se registró en el mismo.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.2",
+        "descripcion": "El empleado utiliza los equipos de protección personal apropiados para la actividad que ejecutar.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.3",
+        "descripcion": "El empleado utiliza guantes dieléctricos con guantes protectores de cuero cuando interviene en circuitos eléctricos energizados.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.4",
+        "descripcion": "El empleado utiliza protección facial contra relámpago de arco cuando interviene en circuitos eléctricos energizados",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.5",
+        "descripcion": "El empleado utiliza balaclava cuando lo establece el procedimiento de trabajo en circuitos eléctricos energizados",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.6",
+        "descripcion": "El empleado utiliza ropa contra relámpago de arco sin daños (como cortes o manchados de químicos) al manipular circuitos eléctricos energizados",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.7",
+        "descripcion": "El empleado utiliza sistema personal de protección contra caídas (arnés de seguridad, estrobo de posicionamiento, línea con absorbedor de energía y/o bloque retráctil, eslinga o punto de anclaje) al realizar actividades a una altura mayor a 1.8 metros",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.8",
+        "descripcion": "El empleado utiliza casco de seguridad clase E con certificación ANSI Z89.1; asimismo, complementa su utilización con el barbiquejo",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.9",
+        "descripcion": "El empleado utiliza calzado de seguridad con puntera reforzada con certificación ASTM F 2412/ASTM F 2413 o NTP ISO 20345",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.10",
+        "descripcion": "El empleado utiliza guantes de protección con certificación EN 388 o ANSI/ISEA 105 al manipular por ejemplo cascotes, otros.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.11",
+        "descripcion": "El empleado utiliza ropa de trabajo convencional cuando realiza actividades operativas que no involucran trabajos en circuitos eléctricos energizados.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.12",
+        "descripcion": "El empleado utiliza protección visual con certificación ANSI Z87.1+ cuando realiza labores operativas",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.13",
+        "descripcion": "El empleado utiliza chaleco reflectante con certificación ANSI SEA 107 o NTP ISO 20471 al exponerse al tránsito vehicular",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.14",
+        "descripcion": "El empleado utiliza protección respiratoria con certificación NIOSH al exponerse a gases o polvo",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.15",
+        "descripcion": "El empleado utiliza careta de protección facial con certificación ANSI Z87.1 o EN ISO 16321-1 cuando se expone a la proyección de partículas y líquidos",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.16",
+        "descripcion": "El empleado utiliza protectores auditivos NRR 23dB(A) al exponerse al ruido del entorno de trabajo",
+        "defaultMark": null
+      },
+      {
+        "codigo": "8.17",
+        "descripcion": "El empleado utiliza tapa nuca al exponerse a la radiación solar, bloqueador solar y repelente contra insectos",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "nombre": "INSTRUCCIÓN PREVIA EN CAMPO",
+    "items": [
+      {
+        "codigo": "9.1",
+        "descripcion": "El empleado porta credencial de identificación",
+        "defaultMark": null
+      },
+      {
+        "codigo": "9.2",
+        "descripcion": "El registro de instrucción previa en campo (cuando aplique) cuenta con la validación del responsable en el área de trabajo.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "9.3",
+        "descripcion": "El registro presente en la actividad de trabajo cuenta con los peligro y controles de acuerdo a la fuente de energía que los mueve.",
+        "defaultMark": "ER"
+      },
+      {
+        "codigo": "9.4",
+        "descripcion": "El registro cuenta con los aspectos ambientales de la actividad y sus medidas de control.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "9.5",
+        "descripcion": "El registro cuenta con la firma de todos los empleados que se encuentran en la actividad.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "9.6",
+        "descripcion": "El registro cuenta con los números de emergencia en caso de incidente y el centro de atención más cercano.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "9.7",
+        "descripcion": "Se cuenta con orden o autorización para realizar las actividades",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "nombre": "PROCEDIMIENTOS",
+    "items": [
+      {
+        "codigo": "10.1",
+        "descripcion": "Se cuenta con documentación en la zona de trabajo de forma virtual o física.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "10.2",
+        "descripcion": "Los documentos utilizados para realizar la actividad se encuentran vigentes.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "10.3",
+        "descripcion": "Se dispone de planos o guías (planos: eléctricos, gas, redes de fibra) al realizar trabajos de excavación.",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 11,
+    "nombre": "MÁQUINAS, EQUIPOS Y HERRAMIENTAS",
+    "items": [
+      {
+        "codigo": "11.1",
+        "descripcion": "Los equipos de poder (vibrador de concreto, máquina cortadora de pavimento, compresora, grupo electrógeno, etc.) se encuentran con su registro de verificación de pre uso y con su bandeja contra derrames.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.2",
+        "descripcion": "El ahuyentador de canes se encuentra cargado y a la mano para su uso",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.3",
+        "descripcion": "Los equipos de poder cuentan con su manual del fabricante en la zona de trabajo",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.4",
+        "descripcion": "Los equipos (revelador de tensión, pinza volta perimétrica, pértiga aislada, línea puesta a tierra) cuentan con su registro de inspección de pre uso.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.5",
+        "descripcion": "Las herramientas de uso manual (picos, palas, barreta, otros) cuentan con su registro de inspección de pre uso y su cinta inspección del mes",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.6",
+        "descripcion": "Los equipos utilizados para cortar (amoladora, otros) poseen guardas de protección.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.7",
+        "descripcion": "Los equipos defectuosos han sido etiquetados y retirados de la zona de trabajo.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.8",
+        "descripcion": "Las escaleras cuentan con sticker (etiqueta) de revisión semestral vigente.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.9",
+        "descripcion": "Las escaleras cuentan con su registro de inspección de pre uso.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "11.10",
+        "descripcion": "El grupo electrógeno se encuentra sin pérdida de combustible, grasa o aceite y con su puesta a tierra.",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "nombre": "VEHICULOS (PESADO y LIVIANO)",
+    "items": [
+      {
+        "codigo": "12.1",
+        "descripcion": "El vehículo cuenta con documentación exigida por el Reglamento nacional de tránsito (SOAT, Tarjeta de propiedad y revisión técnica)",
+        "defaultMark": null
+      },
+      {
+        "codigo": "12.2",
+        "descripcion": "El vehículo cuenta con asientos y su número está en función a lo que autoriza la tarjeta de propiedad vehicular",
+        "defaultMark": null
+      },
+      {
+        "codigo": "12.3",
+        "descripcion": "El vehículo cuenta con cinturones de seguridad para cada asiento",
+        "defaultMark": null
+      },
+      {
+        "codigo": "12.4",
+        "descripcion": "El vehículo cuenta con extintor operativo y con su inspección semestral",
+        "defaultMark": null
+      },
+      {
+        "codigo": "12.5",
+        "descripcion": "El vehículo cuenta con botiquín de primeros auxilios y con su inspección semestral.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "12.6",
+        "descripcion": "El vehículo tiene instalados la cantidad de tacos de madera o metal (según aplique) cuando se encuentra estacionado o en una pendiente.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "12.7",
+        "descripcion": "El vehículo tiene instalados los conos de seguridad cuando se encuentra estacionado en la vía pública",
+        "defaultMark": null
+      },
+      {
+        "codigo": "12.8",
+        "descripcion": "El vehículo cuenta con un kit de contingencia ante derrames",
+        "defaultMark": null
+      },
+      {
+        "codigo": "12.9",
+        "descripcion": "El conductor realizó la inspección de la unidad registrando los datos en su check list.",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "nombre": "EQUIPO DE IZAJE Y GRÚA",
+    "items": [
+      {
+        "codigo": "13.1",
+        "descripcion": "Los equipos de izaje cuentan con registro de inspección de pre uso realizada por el operador de grúa",
+        "defaultMark": null
+      },
+      {
+        "codigo": "13.2",
+        "descripcion": "El brazo hidráulico y/o grúa cuenta con certificado de operatividad emitido por el fabricante autorizado",
+        "defaultMark": null
+      },
+      {
+        "codigo": "13.3",
+        "descripcion": "La canastilla cuenta con un registro de inspección de pre uso",
+        "defaultMark": null
+      },
+      {
+        "codigo": "13.4",
+        "descripcion": "La canastilla cuenta con certificado de operatividad emitido por el fabricante o centro autorizado",
+        "defaultMark": null
+      },
+      {
+        "codigo": "13.5",
+        "descripcion": "La tabla o diagrama de carga se encuentra disponible en la grúa",
+        "defaultMark": null
+      },
+      {
+        "codigo": "13.6",
+        "descripcion": "Las eslingas y aparejos se encuentran en buenas condiciones y correctamente almacenadas.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "13.7",
+        "descripcion": "Se a verificado el uso la capacidad de carga de la grúa y eslingas para el levantamiento de la carga.",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "nombre": "EXCAVACIONES, HOYOS, ZANJAS",
+    "items": [
+      {
+        "codigo": "14.1",
+        "descripcion": "La excavación, hoyo o zanja cuenta con entibado o métodos de protección equivalentes (taludes, banquetas o escudos) cuando su profundidad es mayor o igual a 1.5m.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.2",
+        "descripcion": "En caso que se dejen excavaciones abiertas, mientras no se trabaje en ellas, éstas se protegerán con tableros de madera con letreros que indiquen “NO PISAR”",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.3",
+        "descripcion": "Para el ingreso y salida de la excavación se cuenta con escalera (Madera o fibra de vidrio).",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.4",
+        "descripcion": "La ubicación de la escalera dentro de la zanja se encuentra a una distancia máxima de 7 metros de cada trabajador",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.5",
+        "descripcion": "La excavación de profundidad de 1.50 m, tiene personal que cuenta con arnés y línea de vida",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.6",
+        "descripcion": "Las excavaciones de zanja se encuentran señalizadas y delimitadas con parantes, cintas, mallas y carteles de entrada y salida para el control de personas.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.7",
+        "descripcion": "En las excavaciones de zanja se cuenta con una estación de emergencia, vehículo de contingencia y estación para segregación de residuos",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.8",
+        "descripcion": "Para la excavación de zanja, se cuenta con lavaojos con solución medica del lavaojos es crucial para la protección ocular en situaciones de emergencia",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.9",
+        "descripcion": "Para la compactación de zanja se tiene equipos vibropisonadores con su certificado de operatividad, operador capacitado, bandeja derrame del equipo y tanque de combustible con rombo NFPA",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.10",
+        "descripcion": "El material, producto de excavación, a no menos de 2.00 m del borde de la excavación. Cuando no se puede cumplir esta distancia (por falta de espacio) entonces se puede colocar el material temporalmente a menos de 2 m, siempre y cuando esté restringido el ingreso de personal a la zona de trabajo y a la excavación.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.11",
+        "descripcion": "Al terminar la jornada, esta señalizada la zona de trabajo para evitar el ingreso de terceros, colocando un cerco de malla y cinta señalizadora a 1m de distancia (mínimo) del borde de la excavación (o según recomendaciones del estudio de suelos).",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.12",
+        "descripcion": "Antes de realizar excavaciones se revisaron los planos de interferencia y se cuenta con ellos en obra",
+        "defaultMark": null
+      },
+      {
+        "codigo": "14.13",
+        "descripcion": "En caso de uso retroexcavadora para excavación de zanja se mantiene al personal a una distancia mínima de 1.5 veces la longitud del brazo extendido de la retroexcavadora o excavadora en operación",
+        "defaultMark": null
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "nombre": "Riesgos Psicosociales",
+    "items": [
+      {
+        "codigo": "15.1.",
+        "descripcion": "Los trabajadores se encuentran en condiciones físicas o mentales (sin daños Psicológicos o emocional) aptos para trabajar.",
+        "defaultMark": null
+      },
+      {
+        "codigo": "15.2",
+        "descripcion": "Los trabajadores desempeñan su trabajo cumpliendo las políticas de la empresa P.A. Perú (Anticorrupción, alcohol y drogas, seguridad vial, HSEQ, Energética y Stop Work)",
+        "defaultMark": null
+      }
+    ]
+  }
+]

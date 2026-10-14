@@ -857,3 +857,21 @@ frontend/
   - Componente de interfaz visual `<PatchAndBackupCenterModal />` implementado con shadcn/ui (`Dialog`, `Tabs`, `Card`, `Progress`, `Badge`, `Button`), integrado en la barra superior de `DashboardLayout.tsx`, en el bloque inferior PWA y menú de perfil de `AppSidebar.tsx`, y accesible con contexto activo en `ActivityDetail.tsx`.
   - Protección automática de backup preventivo integrada en `ActivityDetail.tsx` al pulsar "Guardar Formato HSE" o "Cargar Caso Real Demo (Llerena Ríos)".
   - Suite de pruebas unitarias en Vitest (`PatchAndBackupService.test.ts`) con 100% de cobertura y validación de tipos estricta con `tsc -b`.
+* **[COMPLETADO] Módulo 13: Reconstrucción 1:1 Pixel-Perfect de Reportes Oficiales P.A. Perú (HSE-EL-F-120 y HSE-EL-F-128)**
+  - Extracción en alta resolución del Logo Oficial de P.A. Perú (`pa-peru-logo.png`) y componente vectorial reutilizable `<PaPeruLogo />` (`src/components/reports/PaPeruLogo.tsx`) con tipografía corporativa azul/gris.
+  - Reconstrucción 1:1 de la plantilla `<InspectionReportTemplate />` para el formato **HSE-EL-F-120 v02** en exactamente 4 páginas A4:
+    - **Página 1:** Membrete de 3 bloques (Logo P.A. Perú, FORMATO / INSPECCIÓN DE HSE, Tabla de Código/Versión/Fecha/Pág 1 de 4), Bloque "DATOS DE LA EMPRESA QUE REALIZA LA INSPECCIÓN" (Razón Social, RUC 20549011196, Domicilio, Tipo de Actividad Económica), Bloque "DATOS DE LA EMPRESA INSPECCIONADA" (Proyecto, Lugar, Actividad, Responsable del Área, Supervisor Encargado, Fecha y Hora), Barra de Leyenda (S, ER, PI, NA) y Grilla a doble columna (Izq: Secciones 1, 2, 3; Der: Secciones 4, 5, 6, 7 y Secc 8 ítems 8.1 al 8.3).
+    - **Página 2:** Membrete oficial (Pág 2 de 4) y Grilla a doble columna balanceada (Izq: Continuación Secc 8 ítems 8.4 al 8.17, Secc 9, Secc 10, Secc 11; Der: Secc 12, Secc 13, Secc 14, Secc 15), totalizando los 126 ítems exactos del catálogo oficial.
+    - **Página 3:** Membrete oficial (Pág 3 de 4), Tabla RESULTADOS DE LA INSPECCIÓN con subtítulo normativo y hallazgo detallado, Tabla ACCIONES PARA EL LEVANTAMIENTO DE LA OBSERVACIÓN, Barra PERSONAL A INSPECCIONAR (casillas Con acompañamiento / Sin acompañamiento), Tabla de RETROALIMENTACIÓN / CHARLA (Tema, Horas, N° Participantes, Expositor y grilla numerada del 1 al 7 para firmas), Tabla PERSONAL INVOLUCRADO EN LA OBSERVACIÓN y Tabla DATOS DEL INSPECTOR Y RESPONSABLE DE LA ACTIVIDAD.
+    - **Página 4:** Membrete oficial (Pág 4 de 4), barra gris EVIDENCIA FOTOGRAFICA DE LA INSPECCIÓN y tabla de 4 columnas exactas: ÍTEM | REGISTROS FOTOGRÁFICO HALLAZGOS (con imagen real y pie de supervisión) | MEDIDAS CORRECTIVAS | REGISTROS FOTOGRÁFICOS DE LAS MEDIDAS CORRECTIVAS (con "NO REQUIERE REGISTRO FOTOGRÁFICO ADICIONAL" o foto de corrección).
+  - Reconstrucción 1:1 de la plantilla `<AmonestacionReportTemplate />` para el formato **HSE-EL-F-128 v01** en exactamente 1 página A4:
+    - Membrete superior normativo con Logo P.A. Perú, REGISTRO DE AMONESTACIÓN y tabla lateral con PÁGINA: 1 DE 1, VERSIÓN: 01, COD: HSE-EL-F-128, DOCUMENTO CONTROLADO.
+    - Sección 1. DATOS GENERALES con sub-barras DATOS DEL AMONESTADO (Nombres, DNI, Cargo, Ubicación, Empresa, Fecha, Hora) y RESPONSABLES DEL PERSONAL AMONESTADO (Capataz, Ing. Responsable, Actividad) y caja RELATO BREVE DE LA RAZÓN DE LA AMONESTACIÓN.
+    - Sección 2. MOTIVO DE LA AMONESTACIÓN con casillas de verificación 01 a 04 y campo Detallar.
+    - Sección 3. NIVEL DE RIESGO con casillas 01 a 04.
+    - Sección 4. ACCIÓN INMEDIATA DE LOS HECHOS.
+    - Sección 5. Medidas dispuestas según RISST (01 a 04 con suspensión y días).
+    - Sección 6. VALIDACION DEL REGISTRO con 3 bloques horizontales de firmas (REALIZADO POR:, APROBADO POR:, ACEPTADO POR:) con nombres, cargos y líneas de rúbrica.
+  - Conmutador interactivo integrado en `<PdfExporter />` para alternar y previsualizar de forma inmediata entre el F-120 (4 páginas) y F-128 (1 página), con estilos de impresión `@page { size: A4 portrait; margin: 8mm; }` y `-webkit-print-color-adjust: exact`.
+  - Botones de carga rápida en `ActivityDetail.tsx` para casos demo oficiales: Caso Real F-120 (Víctor Alfonso Llerena Ríos) y Caso Demo F-128 (Amonestación por acto subestándar).
+
