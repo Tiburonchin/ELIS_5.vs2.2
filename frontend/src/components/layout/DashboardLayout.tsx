@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Badge } from "@/components/ui/badge"
 import { ShieldCheck, Camera, ClipboardList } from "lucide-react"
+import { AssistantWidget } from "./AssistantWidget"
 
 export interface DashboardLayoutProps {
   children: React.ReactNode
@@ -99,6 +100,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <footer className="border-t py-4 px-6 text-center text-xs text-muted-foreground bg-muted/20">
             ELIS 5.0 — Entorno Local Inteligente y Seguro &bull; Arquitectura Cloud-Native Supabase &bull; Cumplimiento ISO/HSE
           </footer>
+
+          {/* Widget Flotante del Asistente de Voz y Orbe de Datos */}
+          <AssistantWidget />
         </SidebarInset>
       </div>
     </SidebarProvider>

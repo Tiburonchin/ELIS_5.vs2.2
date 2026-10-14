@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
 import { useSpeech, type UseSpeechOptions } from './useSpeech';
 
-export type VoiceAssistantState = 'idle' | 'listening' | 'speaking';
+export type OrbState = 'idle' | 'listening' | 'processing' | 'error';
+// Compatibilidad con código previo que pudiera referenciar VoiceAssistantState o speaking
+export type VoiceAssistantState = OrbState | 'speaking';
 
 export interface UseVoiceAssistantOptions extends UseSpeechOptions {
   onTranscriptionComplete?: (transcript: string) => void;
@@ -9,7 +11,8 @@ export interface UseVoiceAssistantOptions extends UseSpeechOptions {
 }
 
 export interface UseVoiceAssistantResult {
-  state: VoiceAssistantState;
+  state: OrbState | 'speaking';
+  orbState: OrbState;
   isListening: boolean;
   transcript: string;
   interimTranscript: string;
@@ -18,14 +21,17 @@ export interface UseVoiceAssistantResult {
   startSession: () => void;
   stopSession: () => void;
   resetSession: () => void;
+  setProcessing: () => void;
+  setErrorState: (err: string) => void;
   speak: (text: string) => void;
 }
 
 /**
  * Hook useVoiceAssistant:
  * Orquesta la captura por voz vía Web Speech API (usando useSpeech),
- * transiciona reactivamente entre los estados: 'idle' | 'listening' | 'speaking',
- * y expone la lógica para dictado y procesamiento de contexto operativo HSE.
+ * transiciona reactivamente entre los estados estrictos:
+ * type OrbState = 'idle' | 'listening' | 'processing' | 'error' (con soporte opcional 'speaking'),
+ * y expone la lógica para dictado y procesamiento de contexto operativo HSE en 'es-PE'.
  */
 export function useVoiceAssistant(options: UseVoiceAssistantOptions = {}): UseVoiceAssistantResult {
   const {
@@ -37,7 +43,7 @@ export function useVoiceAssistant(options: UseVoiceAssistantOptions = {}): UseVo
     synthesizeSpeech: _synthesizeSpeech = false,
   } = options;
 
-  const [assistantState, setAssistantState] = useState<VoiceAssistantState>('idle');
+  const [assistantState, setAssistantState] = useState<OrbState | 'speaking'>('idle');
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const speech = useSpeech({
@@ -70,6 +76,16 @@ export function useVoiceAssistant(options: UseVoiceAssistantOptions = {}): UseVo
     setAssistantState('idle');
   }, [speech]);
 
+  const setProcessing = useCallback(() => {
+    speech.stopListening();
+    setAssistantState('processing');
+  }, [speech]);
+
+  const setErrorState = useCallback((_err: string) => {
+    speech.stopListening();
+    setAssistantState('error');
+  }, [speech]);
+
   const speak = useCallback(
     (text: string) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -88,7 +104,7 @@ export function useVoiceAssistant(options: UseVoiceAssistantOptions = {}): UseVo
       };
 
       utterance.onerror = () => {
-        setAssistantState('idle');
+        setAssistantState('error');
       };
 
       utteranceRef.current = utterance;
@@ -97,11 +113,23 @@ export function useVoiceAssistant(options: UseVoiceAssistantOptions = {}): UseVo
     [lang]
   );
 
-  // El estado actual refleja el estado del asistente
-  const currentState: VoiceAssistantState = speech.isListening ? 'listening' : assistantState;
+  // Derivar estado actual:
+  // Si speech.error existe y no estamos en otro estado activo, error
+  // Si speech.isListening es true, listening
+  let currentState: OrbState | 'speaking' = assistantState;
+  if (speech.isListening) {
+    currentState = 'listening';
+  } else if (speech.error && assistantState === 'idle') {
+    currentState = 'error';
+  }
+
+  // Normalizar a OrbState para consumidores estrictos de OrbState
+  const orbState: OrbState =
+    currentState === 'speaking' ? 'processing' : (currentState as OrbState);
 
   return {
     state: currentState,
+    orbState,
     isListening: speech.isListening,
     transcript: speech.transcript,
     interimTranscript: speech.interimTranscript,
@@ -110,6 +138,8 @@ export function useVoiceAssistant(options: UseVoiceAssistantOptions = {}): UseVo
     startSession,
     stopSession,
     resetSession,
+    setProcessing,
+    setErrorState,
     speak,
   };
 }

@@ -12,6 +12,25 @@ vi.mock('../../services/ActivityService', () => ({
   },
 }));
 
+// Mock de useVoiceAssistant
+vi.mock('../../hooks/useVoiceAssistant', () => ({
+  useVoiceAssistant: () => ({
+    state: 'idle',
+    orbState: 'idle',
+    isListening: false,
+    transcript: '',
+    interimTranscript: '',
+    isSupported: true,
+    error: null,
+    startSession: vi.fn(),
+    stopSession: vi.fn(),
+    resetSession: vi.fn(),
+    setProcessing: vi.fn(),
+    setErrorState: vi.fn(),
+    speak: vi.fn(),
+  }),
+}));
+
 // Mock de useSpeech
 vi.mock('../../hooks/useSpeech', () => ({
   useSpeech: () => ({
@@ -131,7 +150,7 @@ describe('ActivitiesManager Page Component', () => {
     expect(textarea.value).toBe('');
 
     // Verificar que el botón de dictado de voz está presente y accesible
-    const voiceBtn = screen.getByRole('button', { name: /Dictar por Voz/i });
+    const voiceBtn = screen.getByRole('button', { name: /Dictar Descripción|Dictar por Voz/i });
     expect(voiceBtn).toBeInTheDocument();
 
     // Simular que el usuario dicta o el hook de voz actualiza la descripción

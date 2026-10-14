@@ -5,7 +5,8 @@ import {
   type ActividadInsert,
   type ActividadUpdate,
 } from '../services/ActivityService';
-import { useSpeech } from '../hooks/useSpeech';
+import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
+import { DataNodeOrb } from '../components/voice/DataNodeOrb';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -26,8 +27,6 @@ import {
   Calendar,
   User,
   ArrowRight,
-  Mic,
-  MicOff,
   Layers,
   LayoutGrid,
   TableProperties,
@@ -86,23 +85,36 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
   const [saving, setSaving] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Integración de Reconocimiento por Voz para el campo "Descripción"
+  // Campo actualmente en foco para dictado inteligente
+  const [activeVoiceField, setActiveVoiceField] = useState<'descripcion' | 'accion_inmediata'>('descripcion');
+
+  // Integración de Asistente de Voz con useVoiceAssistant para el formulario
   const {
     isListening,
     interimTranscript,
     isSupported: isSpeechSupported,
-    startListening,
-    stopListening,
-    resetTranscript,
-  } = useSpeech({
+    startSession,
+    stopSession,
+    resetSession,
+  } = useVoiceAssistant({
     lang: 'es-PE',
     onResult: (dictatedText) => {
-      setFormData((prev) => ({
-        ...prev,
-        descripcion: prev.descripcion
-          ? `${prev.descripcion} ${dictatedText}`.trim()
-          : dictatedText,
-      }));
+      setFormData((prev) => {
+        if (activeVoiceField === 'accion_inmediata') {
+          return {
+            ...prev,
+            accion_inmediata: prev.accion_inmediata
+              ? `${prev.accion_inmediata} ${dictatedText}`.trim()
+              : dictatedText,
+          };
+        }
+        return {
+          ...prev,
+          descripcion: prev.descripcion
+            ? `${prev.descripcion} ${dictatedText}`.trim()
+            : dictatedText,
+        };
+      });
     },
   });
 
@@ -150,7 +162,7 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
       sancion_tipo: '01_LLAMADA_ATENCION',
       accion_inmediata: '',
     });
-    resetTranscript();
+    resetSession();
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -178,7 +190,7 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
       sancion_tipo: datosHse.sancion_aplicada_risst || '01_LLAMADA_ATENCION',
       accion_inmediata: datosHse.accion_inmediata_hechos || '',
     });
-    resetTranscript();
+    resetSession();
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -283,11 +295,14 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
     }
   };
 
-  const toggleVoiceDictation = () => {
+  const toggleVoiceDictation = (field?: 'descripcion' | 'accion_inmediata') => {
+    if (field) {
+      setActiveVoiceField(field);
+    }
     if (isListening) {
-      stopListening();
+      stopSession();
     } else {
-      startListening();
+      startSession();
     }
   };
 
@@ -761,59 +776,93 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
                 </div>
 
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="block text-[11px] font-medium text-foreground">
-                    Acción Inmediata Adoptada en Sitio
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-medium text-foreground">
+                      Acción Inmediata Adoptada en Sitio
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => toggleVoiceDictation('accion_inmediata')}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium cursor-pointer transition-all ${
+                        isListening && activeVoiceField === 'accion_inmediata'
+                          ? 'bg-emerald-500 text-white animate-pulse shadow-md shadow-emerald-500/30'
+                          : 'bg-muted hover:bg-muted/80 text-foreground border border-border'
+                      }`}
+                      title="Dictar acción inmediata"
+                    >
+                      <DataNodeOrb
+                        size="sm"
+                        state={isListening && activeVoiceField === 'accion_inmediata' ? 'listening' : 'idle'}
+                        className="w-4 h-4"
+                      />
+                      <span>
+                        {isListening && activeVoiceField === 'accion_inmediata'
+                          ? 'Dictando Acción...'
+                          : 'Dictar Acción'}
+                      </span>
+                    </button>
+                  </div>
                   <Input
                     type="text"
                     value={formData.accion_inmediata}
+                    onFocus={() => setActiveVoiceField('accion_inmediata')}
                     onChange={(e) => setFormData({ ...formData, accion_inmediata: e.target.value })}
                     className="text-xs h-8"
                     placeholder="Paralización de labor y re-inducción al trabajador"
                   />
+                  {isListening && activeVoiceField === 'accion_inmediata' && interimTranscript && (
+                    <p className="text-[11px] text-emerald-500 italic mt-0.5 font-mono">
+                      Dictando acción: {interimTranscript}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Campo Descripción con Botón de Dictado por Voz */}
+          {/* Campo Descripción con Orbe y Dictado por Voz */}
           <div className="space-y-1">
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-foreground">
                 Descripción / Observaciones
               </label>
 
-              {/* Botón Micrófono useSpeech */}
+              {/* Botón de Dictado con DataNodeOrb */}
               <button
                 type="button"
-                onClick={toggleVoiceDictation}
+                onClick={() => toggleVoiceDictation('descripcion')}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all ${
-                  isListening
+                  isListening && activeVoiceField === 'descripcion'
                     ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
                     : 'bg-muted hover:bg-muted/80 text-foreground border border-border'
                 }`}
                 title={isSpeechSupported ? 'Dictar por voz en español' : 'Voz no soportada'}
               >
-                {isListening ? (
-                  <MicOff className="h-3.5 w-3.5" />
-                ) : (
-                  <Mic className="h-3.5 w-3.5" />
-                )}
-                <span>{isListening ? 'Escuchando (es-PE)...' : 'Dictar por Voz'}</span>
+                <DataNodeOrb
+                  size="sm"
+                  state={isListening && activeVoiceField === 'descripcion' ? 'listening' : 'idle'}
+                  className="w-4 h-4"
+                />
+                <span>
+                  {isListening && activeVoiceField === 'descripcion'
+                    ? 'Escuchando (es-PE)...'
+                    : 'Dictar Descripción'}
+                </span>
               </button>
             </div>
 
             <textarea
               rows={3}
               value={formData.descripcion}
+              onFocus={() => setActiveVoiceField('descripcion')}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
               className="w-full px-3 py-2 text-xs rounded-md border border-input bg-background text-foreground shadow-xs focus:ring-1 focus:ring-ring focus:outline-none"
               placeholder="Dicta o escribe notas de campo sobre la inspección..."
             />
 
-            {isListening && interimTranscript && (
-              <p className="text-[11px] text-primary italic mt-1">
-                Dictando: {interimTranscript}
+            {isListening && activeVoiceField === 'descripcion' && interimTranscript && (
+              <p className="text-[11px] text-primary italic mt-1 font-mono">
+                Dictando descripción: {interimTranscript}
               </p>
             )}
           </div>
