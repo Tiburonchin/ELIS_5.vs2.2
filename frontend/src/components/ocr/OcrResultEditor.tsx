@@ -30,6 +30,7 @@ export const OcrResultEditor: React.FC<OcrResultEditorProps> = ({
     const sanitizeText = (val: string): string =>
       val
         .replace(/<[^>]*>?/gm, '') // Remover etiquetas HTML/Script
+        // eslint-disable-next-line no-control-regex
         .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, '') // Remover caracteres de control preservando saltos de línea (\n = \x0A)
         .trim();
 
