@@ -1,7 +1,13 @@
 import React from 'react';
 import type { ActividadRow } from '@/services/ActivityService';
 import type { Database } from '@/types/database.types';
-import { ShieldCheck, CheckCircle2, AlertTriangle, AlertOctagon, HelpCircle } from 'lucide-react';
+import {
+  PA_PERU_INFO,
+  CATALOGO_F120,
+  CALIFICACIONES_HSE,
+  type FormatoInspeccionF120,
+  type CalificacionHSE,
+} from '@/types/hseFormats';
 
 export interface InspectionReportTemplateProps {
   activity: ActividadRow;
@@ -12,213 +18,452 @@ export interface InspectionReportTemplateProps {
   }>;
   inspectorName?: string;
   inspectorCargo?: string;
+  /** URLs precomputadas de thumbnails indexadas por evidencia.id */
+  thumbUrls?: Record<string, string>;
 }
 
-export const SECCIONES_CHECKLIST_HSE = [
-  { id: 1, nombre: 'Instalaciones, Estructura y Almacén' },
-  { id: 2, nombre: 'Herramientas Manuales y Eléctricas' },
-  { id: 3, nombre: 'Escaleras, Andamios y Plataformas' },
-  { id: 4, nombre: 'Equipos de Protección Personal (EPP)' },
-  { id: 5, nombre: 'Orden, Limpieza y Segregación' },
-  { id: 6, nombre: 'Instalaciones y Tableros Eléctricos' },
-  { id: 7, nombre: 'Protección Contra Incendios y Extintores' },
-  { id: 8, nombre: 'Productos Químicos y Hojas MSDS' },
-  { id: 9, nombre: 'Procedimientos de Trabajo Seguro (PETS/AST)' },
-  { id: 10, nombre: 'Ergonomía y Manipulación de Cargas' },
-  { id: 11, nombre: 'Medio Ambiente y Manejo de Residuos' },
-  { id: 12, nombre: 'Vehículos y Maquinaria Pesada' },
-  { id: 13, nombre: 'Primeros Auxilios y Emergencias' },
-  { id: 14, nombre: 'Capacitación y Charlas de Seguridad' },
-  { id: 15, nombre: 'Comportamiento y Observación Preventiva' },
-];
+/** Estilo de celda reutilizable para la tabla tabular */
+const cell = 'border border-black px-1.5 py-1 text-[9px] leading-tight';
+const cellCenter = `${cell} text-center`;
+const headerCell = `${cell} font-bold bg-gray-100 text-[8px] uppercase`;
+
+/** Encabezado PA Perú con tabla de control documental */
+const DocumentHeader: React.FC<{ datos?: FormatoInspeccionF120; codigo: string; pagina: string; fechaFallback?: string }> = ({ datos, codigo, pagina, fechaFallback }) => (
+  <table className="w-full border-collapse border border-black mb-0" style={{ tableLayout: 'fixed' }}>
+    <tbody>
+      <tr>
+        <td rowSpan={4} className="border border-black w-[140px] p-2 text-center align-middle">
+          <div className="font-black text-sm leading-none tracking-tighter">P.A.</div>
+          <div className="font-bold text-[8px] leading-tight mt-0.5">PROFESIONALES<br />ASOCIADOS</div>
+        </td>
+        <td rowSpan={4} className="border border-black p-2 text-center align-middle">
+          <div className="font-bold text-[10px] uppercase leading-tight">
+            INSPECCIÓN DE SEGURIDAD, SALUD EN EL TRABAJO Y MEDIO AMBIENTE
+          </div>
+          <div className="text-[8px] text-gray-600 mt-0.5">
+            {PA_PERU_INFO.razon_social} — RUC {PA_PERU_INFO.ruc}
+          </div>
+        </td>
+        <td className={`${headerCell} w-[70px]`}>Código</td>
+        <td className={`${cell} w-[100px] font-mono text-[8px]`}>{codigo}</td>
+      </tr>
+      <tr>
+        <td className={headerCell}>Versión</td>
+        <td className={`${cell} font-mono text-[8px]`}>{datos?.version || '01'}</td>
+      </tr>
+      <tr>
+        <td className={headerCell}>Fecha</td>
+        <td className={`${cell} text-[8px]`}>{datos?.cabecera?.fecha_inspeccion || fechaFallback || '—'}</td>
+      </tr>
+      <tr>
+        <td className={headerCell}>Página</td>
+        <td className={`${cell} text-[8px]`}>{pagina}</td>
+      </tr>
+    </tbody>
+  </table>
+);
 
 export const InspectionReportTemplate: React.FC<InspectionReportTemplateProps> = ({
   activity,
   evidences = [],
   inspectorName,
-  inspectorCargo,
+  thumbUrls = {},
 }) => {
-  const datosJson = (activity.datos_formato_json as any) || {};
-  const itemsGuardados: Record<string, { calificacion: 'S' | 'ER' | 'PI' | 'NA'; observacion?: string }> =
-    datosJson.items_evaluados || {};
+  const raw = (activity.datos_formato_json as unknown) || {};
+  const datos = raw as FormatoInspeccionF120;
+  const isF120 = datos?.tipo_formato === 'CHECKLIST_F120';
 
-  const getBadgeIcon = (calif?: string) => {
-    switch (calif) {
-      case 'S':
-        return <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded text-[11px]"><CheckCircle2 className="w-3.5 h-3.5" /> S</span>;
-      case 'ER':
-        return <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded text-[11px]"><AlertTriangle className="w-3.5 h-3.5" /> ER</span>;
-      case 'PI':
-        return <span className="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 px-2 py-0.5 rounded text-[11px]"><AlertOctagon className="w-3.5 h-3.5" /> PI</span>;
-      case 'NA':
-        return <span className="inline-flex items-center gap-1 font-medium text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 px-2 py-0.5 rounded text-[11px]"><HelpCircle className="w-3.5 h-3.5" /> NA</span>;
-      default:
-        return <span className="text-muted-foreground text-xs italic">Sin calificar</span>;
-    }
+  const cabecera = isF120 ? datos.cabecera : {
+    razon_social: PA_PERU_INFO.razon_social,
+    ruc: PA_PERU_INFO.ruc,
+    domicilio: PA_PERU_INFO.domicilio,
+    tipo_actividad_economica: PA_PERU_INFO.tipo_actividad_economica,
+    proyecto: activity.ubicacion,
+    actividad: activity.tipo_actividad,
+    lugar: activity.ubicacion,
+    supervisor_encargado: activity.responsable_nombre,
+    responsable_area: '',
+    fecha_inspeccion: activity.fecha_operacion,
+    hora_inspeccion: '',
   };
 
+  // Mapa de ítems evaluados para búsqueda O(1)
+  const itemsMap = new Map<string, { calificacion: CalificacionHSE; observacion?: string }>();
+  if (isF120 && datos.items_evaluados) {
+    for (const it of datos.items_evaluados) {
+      itemsMap.set(it.codigo, { calificacion: it.calificacion, observacion: it.observacion });
+    }
+  }
+
+  const hallazgos = isF120 ? (datos.hallazgos_y_levantamiento || []) : [];
+  const personal = isF120 ? (datos.personal_involucrado || []) : [];
+  const charla = isF120 ? datos.retroalimentacion_charla : null;
+  const inspector = isF120 ? datos.inspector_encargado : { nombre: inspectorName || activity.responsable_nombre, cargo: 'Inspector HSE' };
+  const modalidad = isF120 ? datos.modalidad_inspeccion : 'CON_ACOMPANAMIENTO';
+
+  const codigo = 'HSE-EL-F-120';
+
   return (
-    <div className="bg-background text-foreground p-6 sm:p-8 max-w-4xl mx-auto border border-border shadow-sm rounded-lg print:border-none print:shadow-none print:p-0">
-      {/* Membrete Corporativo */}
-      <header className="border-b-2 border-primary/80 pb-4 mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-black text-xl shadow-xs">
-              E
-            </div>
-            <div>
-              <h1 className="text-lg font-black tracking-tight text-foreground uppercase">
-                ELIS 5.0 &bull; REPORTE DE INSPECCIÓN HSE
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                Checklist Normativo de Supervisión de Seguridad y Salud en el Trabajo (15 Secciones)
-              </p>
-            </div>
-          </div>
-          <div className="text-left sm:text-right">
-            <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold bg-muted px-2.5 py-1 rounded border border-border">
-              {activity.codigo_referencia}
-            </span>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Fecha: {new Date(activity.fecha_operacion).toLocaleDateString('es-PE')}
-            </p>
-          </div>
-        </div>
-      </header>
+    <div className="font-sans text-black bg-white print:bg-white" style={{ fontSize: '10px' }}>
+      {/* ═══════════════════ PÁGINA 1 y 2: Cabecera + Checklist ═══════════════════ */}
+      <div className="page-break-inside-avoid">
+        <DocumentHeader datos={datos} codigo={codigo} pagina="1 de 4" />
 
-      {/* Metadatos de la Actividad */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-muted/30 border border-border/60 mb-6 text-xs">
-        <div>
-          <span className="font-semibold text-muted-foreground block text-[10px] uppercase">Ubicación / Frente</span>
-          <span className="font-medium text-foreground">{activity.ubicacion}</span>
-        </div>
-        <div>
-          <span className="font-semibold text-muted-foreground block text-[10px] uppercase">Responsable Operativo</span>
-          <span className="font-medium text-foreground">{activity.responsable_nombre}</span>
-        </div>
-        <div>
-          <span className="font-semibold text-muted-foreground block text-[10px] uppercase">Estado Reporte</span>
-          <span className="font-medium text-foreground capitalize">{activity.estado_reporte}</span>
-        </div>
-        <div>
-          <span className="font-semibold text-muted-foreground block text-[10px] uppercase">Evidencias Vinculadas</span>
-          <span className="font-medium text-foreground">{evidences.length} registro(s)</span>
-        </div>
-      </section>
+        {/* Datos de la inspección */}
+        <table className="w-full border-collapse border border-black mt-0">
+          <tbody>
+            <tr>
+              <td className={`${headerCell} w-[120px]`}>Proyecto</td>
+              <td className={cell} colSpan={3}>{cabecera.proyecto}</td>
+            </tr>
+            <tr>
+              <td className={headerCell}>Actividad</td>
+              <td className={cell}>{cabecera.actividad}</td>
+              <td className={`${headerCell} w-[120px]`}>Lugar</td>
+              <td className={cell}>{cabecera.lugar}</td>
+            </tr>
+            <tr>
+              <td className={headerCell}>Supervisor Encargado</td>
+              <td className={cell}>{cabecera.supervisor_encargado}</td>
+              <td className={headerCell}>Fecha / Hora</td>
+              <td className={cell}>{cabecera.fecha_inspeccion} — {cabecera.hora_inspeccion}</td>
+            </tr>
+            <tr>
+              <td className={headerCell}>Responsable del Área</td>
+              <td className={cell} colSpan={3}>{cabecera.responsable_area}</td>
+            </tr>
+          </tbody>
+        </table>
 
-      {activity.descripcion && (
-        <section className="mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
-            Resumen General de la Inspección
-          </h2>
-          <p className="text-xs text-foreground bg-muted/20 p-3 rounded border border-border/40">
-            {activity.descripcion}
-          </p>
-        </section>
-      )}
+        {/* Leyenda */}
+        <div className="flex gap-4 py-1.5 text-[8px] font-medium border-x border-b border-black px-2 bg-gray-50">
+          {Object.entries(CALIFICACIONES_HSE).map(([k, v]) => (
+            <span key={k}><strong>{k}</strong>: {v}</span>
+          ))}
+        </div>
 
-      {/* Tabla del Checklist de 15 Secciones */}
-      <section className="mb-8">
-        <h2 className="text-sm font-bold tracking-tight text-foreground uppercase mb-3 flex items-center gap-2">
-          <span>Evaluación de Secciones Normativas</span>
-          <span className="text-[10px] font-normal text-muted-foreground lowercase">
-            (S: Seguro, ER: En Riesgo, PI: Peligro Inminente, NA: No Aplica)
-          </span>
-        </h2>
+        {/* Tabla de Checklist — Secciones 1 a 8 */}
+        <table className="w-full border-collapse border border-black mt-0">
+          <thead>
+            <tr>
+              <th className={`${headerCell} w-[40px]`}>N°</th>
+              <th className={headerCell}>DESCRIPCIÓN</th>
+              <th className={`${headerCell} w-[28px]`}>S</th>
+              <th className={`${headerCell} w-[28px]`}>ER</th>
+              <th className={`${headerCell} w-[28px]`}>PI</th>
+              <th className={`${headerCell} w-[28px]`}>NA</th>
+              <th className={`${headerCell} w-[180px]`}>OBSERVACIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CATALOGO_F120.filter((s) => s.id <= 8).map((seccion) => (
+              <React.Fragment key={seccion.id}>
+                {/* Encabezado de sección */}
+                <tr>
+                  <td className={`${cell} font-bold bg-gray-200 text-[8px]`} colSpan={7}>
+                    {seccion.id}. {seccion.nombre}
+                  </td>
+                </tr>
+                {/* Ítems de la sección */}
+                {seccion.items.map((item) => {
+                  const eval_ = itemsMap.get(item.codigo);
+                  const calif = eval_?.calificacion;
+                  return (
+                    <tr key={item.codigo}>
+                      <td className={cellCenter}>{item.codigo}</td>
+                      <td className={`${cell} text-[8px]`}>{item.descripcion}</td>
+                      <td className={cellCenter}>{calif === 'S' ? '✕' : ''}</td>
+                      <td className={`${cellCenter} ${calif === 'ER' ? 'bg-amber-100 font-bold' : ''}`}>{calif === 'ER' ? '✕' : ''}</td>
+                      <td className={`${cellCenter} ${calif === 'PI' ? 'bg-red-100 font-bold' : ''}`}>{calif === 'PI' ? '✕' : ''}</td>
+                      <td className={cellCenter}>{calif === 'NA' ? '✕' : ''}</td>
+                      <td className={`${cell} text-[7px] italic`}>{eval_?.observacion || ''}</td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        <div className="border border-border rounded-lg overflow-hidden">
-          <table className="w-full text-xs text-left">
-            <thead className="bg-muted/80 text-foreground font-semibold border-b border-border">
+      {/* ═══════════════════ PÁGINA 2: Checklist Secciones 9 a 15 ══════════════ */}
+      <div className="page-break-inside-avoid mt-2" style={{ breakBefore: 'page' }}>
+        <DocumentHeader datos={datos} codigo={codigo} pagina="2 de 4" />
+
+        <table className="w-full border-collapse border border-black mt-0">
+          <thead>
+            <tr>
+              <th className={`${headerCell} w-[40px]`}>N°</th>
+              <th className={headerCell}>DESCRIPCIÓN</th>
+              <th className={`${headerCell} w-[28px]`}>S</th>
+              <th className={`${headerCell} w-[28px]`}>ER</th>
+              <th className={`${headerCell} w-[28px]`}>PI</th>
+              <th className={`${headerCell} w-[28px]`}>NA</th>
+              <th className={`${headerCell} w-[180px]`}>OBSERVACIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CATALOGO_F120.filter((s) => s.id >= 9).map((seccion) => (
+              <React.Fragment key={seccion.id}>
+                {/* Encabezado de sección */}
+                <tr>
+                  <td className={`${cell} font-bold bg-gray-200 text-[8px]`} colSpan={7}>
+                    {seccion.id}. {seccion.nombre}
+                  </td>
+                </tr>
+                {/* Ítems de la sección */}
+                {seccion.items.map((item) => {
+                  const eval_ = itemsMap.get(item.codigo);
+                  const calif = eval_?.calificacion;
+                  return (
+                    <tr key={item.codigo}>
+                      <td className={cellCenter}>{item.codigo}</td>
+                      <td className={`${cell} text-[8px]`}>{item.descripcion}</td>
+                      <td className={cellCenter}>{calif === 'S' ? '✕' : ''}</td>
+                      <td className={`${cellCenter} ${calif === 'ER' ? 'bg-amber-100 font-bold' : ''}`}>{calif === 'ER' ? '✕' : ''}</td>
+                      <td className={`${cellCenter} ${calif === 'PI' ? 'bg-red-100 font-bold' : ''}`}>{calif === 'PI' ? '✕' : ''}</td>
+                      <td className={cellCenter}>{calif === 'NA' ? '✕' : ''}</td>
+                      <td className={`${cell} text-[7px] italic`}>{eval_?.observacion || ''}</td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ═══════════════════ PÁGINA 3: Levantamiento + Charla ═══════════════════ */}
+      <div className="page-break-inside-avoid mt-2" style={{ breakBefore: 'page' }}>
+        <DocumentHeader datos={datos} codigo={codigo} pagina="3 de 4" />
+
+        {/* Se corrigieron hallazgos */}
+        <table className="w-full border-collapse border border-black mt-0">
+          <tbody>
+            <tr>
+              <td className={`${headerCell} w-[280px]`}>
+                ¿SE CORRIGIERON LOS HALLAZGOS DURANTE LA INSPECCIÓN?
+              </td>
+              <td className={cellCenter}>
+                {(isF120 && datos.se_corrigieron_hallazgos) ? '☑ SÍ' : '☐ SÍ'}
+              </td>
+              <td className={cellCenter}>
+                {(isF120 && !datos.se_corrigieron_hallazgos) ? '☑ NO' : '☐ NO'}
+              </td>
+              <td className={`${headerCell} w-[100px]`}>Modalidad</td>
+              <td className={cell}>
+                {modalidad === 'CON_ACOMPANAMIENTO' ? 'Con acompañamiento' : 'Sin acompañamiento'}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Tabla de hallazgos y levantamiento */}
+        <table className="w-full border-collapse border border-black mt-0">
+          <thead>
+            <tr>
+              <th className={`${headerCell} w-[40px]`}>ÍTEM</th>
+              <th className={headerCell}>RESULTADO DE LA INSPECCIÓN (Hallazgo)</th>
+              <th className={headerCell}>ACCIONES PARA EL LEVANTAMIENTO DE LA OBSERVACIÓN (Corrección)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hallazgos.length > 0 ? hallazgos.map((h, i) => (
+              <tr key={i}>
+                <td className={`${cellCenter} font-mono font-bold`}>{h.item_ref}</td>
+                <td className={`${cell} text-[8px]`}>{h.descripcion_hallazgo}</td>
+                <td className={`${cell} text-[8px]`}>{h.accion_levantamiento}</td>
+              </tr>
+            )) : (
               <tr>
-                <th className="py-2 px-3 w-12 text-center">N°</th>
-                <th className="py-2 px-3">Área / Sección Normativa</th>
-                <th className="py-2 px-3 w-36 text-center">Calificación</th>
-                <th className="py-2 px-3">Observaciones / Medidas Inmediatas</th>
+                <td className={cellCenter}>—</td>
+                <td className={cell}>Sin hallazgos registrados</td>
+                <td className={cell}>—</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Personal involucrado */}
+        <table className="w-full border-collapse border border-black mt-2">
+          <thead>
+            <tr>
+              <th className={headerCell} colSpan={2}>PERSONAL INVOLUCRADO EN LA INSPECCIÓN</th>
+            </tr>
+            <tr>
+              <th className={`${headerCell} w-1/2`}>NOMBRES Y APELLIDOS</th>
+              <th className={headerCell}>CARGO / PUESTO</th>
+            </tr>
+          </thead>
+          <tbody>
+            {personal.length > 0 ? personal.map((p, i) => (
+              <tr key={i}>
+                <td className={`${cell} font-semibold`}>{p.nombre_completo}</td>
+                <td className={cell}>{p.cargo}</td>
+              </tr>
+            )) : (
+              <tr>
+                <td className={cell}>—</td>
+                <td className={cell}>—</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Retroalimentación / Charla */}
+        {charla && (
+          <table className="w-full border-collapse border border-black mt-2">
+            <thead>
+              <tr>
+                <th className={headerCell} colSpan={4}>RETROALIMENTACIÓN / CHARLA DE SEGURIDAD</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/60">
-              {SECCIONES_CHECKLIST_HSE.map((sec) => {
-                const itemData = itemsGuardados[`sec_${sec.id}`] || {};
-                return (
-                  <tr key={sec.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="py-2 px-3 text-center font-mono font-medium text-muted-foreground">
-                      {sec.id.toString().padStart(2, '0')}
-                    </td>
-                    <td className="py-2 px-3 font-medium text-foreground">
-                      {sec.nombre}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      {getBadgeIcon(itemData.calificacion)}
-                    </td>
-                    <td className="py-2 px-3 text-muted-foreground italic">
-                      {itemData.observacion || '-'}
-                    </td>
+            <tbody>
+              <tr>
+                <td className={`${headerCell} w-[80px]`}>Tema</td>
+                <td className={cell} colSpan={3}>{charla.tema}</td>
+              </tr>
+              <tr>
+                <td className={headerCell}>Hora Desde</td>
+                <td className={cell}>{charla.hora_desde}</td>
+                <td className={headerCell}>Hora Hasta</td>
+                <td className={cell}>{charla.hora_hasta}</td>
+              </tr>
+              <tr>
+                <td className={headerCell}>N° Participantes</td>
+                <td className={cell}>{charla.num_participantes}</td>
+                <td className={headerCell}>Expositor</td>
+                <td className={cell}>{charla.nombre_expositor}</td>
+              </tr>
+              {charla.participantes.length > 0 && (
+                <>
+                  <tr>
+                    <th className={`${headerCell}`} colSpan={2}>PARTICIPANTE</th>
+                    <th className={headerCell} colSpan={2}>CARGO</th>
                   </tr>
-                );
-              })}
+                  {charla.participantes.map((p, i) => (
+                    <tr key={i}>
+                      <td className={cell} colSpan={2}>{p.nombre}</td>
+                      <td className={cell} colSpan={2}>{p.cargo || '—'}</td>
+                    </tr>
+                  ))}
+                </>
+              )}
             </tbody>
           </table>
-        </div>
-      </section>
+        )}
 
-      {/* Evidencias Fotográficas Vinculadas */}
-      {evidences.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-sm font-bold tracking-tight text-foreground uppercase mb-3">
-            Evidencias Fotográficas y Verificación Forense
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {evidences.map(({ evidencia, identificacion }) => (
-              <div
-                key={evidencia.id}
-                className="p-3 border border-border/80 rounded-lg bg-card space-y-2 text-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] truncate max-w-[200px] text-muted-foreground">
-                    {evidencia.nombre_archivo}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
-                    <ShieldCheck className="w-3 h-3" /> SHA-256
-                  </span>
-                </div>
-                <div className="p-2 bg-muted/40 rounded font-mono text-[9px] break-all text-muted-foreground">
-                  {evidencia.hash_sha256}
-                </div>
-                {identificacion && (
-                  <div className="text-[11px] pt-1 border-t border-border/40">
-                    <span className="font-semibold text-foreground">Personal Identificado: </span>
-                    <span>
-                      {identificacion.nombres} {identificacion.apellido_paterno} {identificacion.apellido_materno}
-                    </span>
-                    {identificacion.cargo && (
-                      <span className="text-muted-foreground"> ({identificacion.cargo})</span>
+        {/* Inspector encargado */}
+        <table className="w-full border-collapse border border-black mt-2">
+          <tbody>
+            <tr>
+              <td className={`${headerCell} w-[160px]`}>INSPECTOR ENCARGADO</td>
+              <td className={cell}>{inspector?.nombre || ''}</td>
+              <td className={`${headerCell} w-[80px]`}>CARGO</td>
+              <td className={cell}>{inspector?.cargo || ''}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Firmas */}
+        <div className="grid grid-cols-2 gap-8 mt-6 px-4">
+          <div className="text-center">
+            <div className="h-12 border-b border-black mb-1" />
+            <p className="font-bold text-[9px]">{inspector?.nombre || inspectorName || activity.responsable_nombre}</p>
+            <p className="text-[8px] text-gray-600">{inspector?.cargo || 'Inspector HSE'}</p>
+          </div>
+          <div className="text-center">
+            <div className="h-12 border-b border-black mb-1" />
+            <p className="font-bold text-[9px]">Responsable del Área</p>
+            <p className="text-[8px] text-gray-600">Aprobación</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════ PÁGINA 4: Evidencia Fotográfica ═══════════════════ */}
+      <div className="page-break-inside-avoid mt-2" style={{ breakBefore: 'page' }}>
+        <DocumentHeader datos={datos} codigo={codigo} pagina="4 de 4" />
+
+        <table className="w-full border-collapse border border-black mt-0">
+          <thead>
+            <tr>
+              <th className={`${headerCell} w-[40px]`}>ÍTEM</th>
+              <th className={headerCell}>REGISTRO FOTOGRÁFICO HALLAZGOS</th>
+              <th className={headerCell}>MEDIDAS CORRECTIVAS</th>
+              <th className={headerCell}>REGISTRO FOTOGRÁFICO DE LAS MEDIDAS CORRECTIVAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hallazgos.length > 0 ? hallazgos.map((h, i) => {
+              const hallazgoUrl = h.evidencia_hallazgo_id ? thumbUrls[h.evidencia_hallazgo_id] : undefined;
+              const correccionUrl = h.evidencia_correccion_id ? thumbUrls[h.evidencia_correccion_id] : undefined;
+
+              return (
+                <tr key={i}>
+                  <td className={`${cellCenter} font-mono font-bold`}>{h.item_ref}</td>
+                  <td className={`${cellCenter}`} style={{ height: '120px' }}>
+                    {hallazgoUrl ? (
+                      <img src={hallazgoUrl} alt={`Hallazgo ${h.item_ref}`} className="max-h-[110px] mx-auto object-contain" />
+                    ) : (
+                      <span className="text-[8px] text-gray-400 italic">Sin foto de hallazgo</span>
                     )}
+                  </td>
+                  <td className={`${cell} text-[8px] align-top`}>{h.accion_levantamiento}</td>
+                  <td className={`${cellCenter}`} style={{ height: '120px' }}>
+                    {h.no_requiere_foto_correccion ? (
+                      <span className="text-[8px] text-gray-500 italic">No requiere registro fotográfico adicional</span>
+                    ) : correccionUrl ? (
+                      <img src={correccionUrl} alt={`Corrección ${h.item_ref}`} className="max-h-[110px] mx-auto object-contain" />
+                    ) : (
+                      <span className="text-[8px] text-gray-400 italic">Sin foto de corrección</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            }) : (
+              <tr>
+                <td className={cellCenter} colSpan={4}>
+                  <div className="py-6 text-gray-400 italic text-[9px]">
+                    No se registraron hallazgos con evidencia fotográfica en esta inspección.
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Firmas de Conformidad */}
-      <footer className="pt-8 mt-8 border-t border-border grid grid-cols-2 gap-8 text-center text-xs">
-        <div>
-          <div className="h-14 border-b border-foreground/40 mb-2 flex items-end justify-center pb-1">
-            <span className="font-serif italic text-muted-foreground text-sm">Firma del Inspector</span>
-          </div>
-          <p className="font-bold text-foreground">{inspectorName || activity.responsable_nombre}</p>
-          <p className="text-[11px] text-muted-foreground">{inspectorCargo || 'Inspector HSE / SST'}</p>
-        </div>
-
-        <div>
-          <div className="h-14 border-b border-foreground/40 mb-2 flex items-end justify-center pb-1">
-            <span className="font-serif italic text-muted-foreground text-sm">Firma del Residente</span>
-          </div>
-          <p className="font-bold text-foreground">Ing. Residente de Obra / Frente</p>
-          <p className="text-[11px] text-muted-foreground">Supervisor de Operaciones</p>
-        </div>
-      </footer>
+                </td>
+              </tr>
+            )}
+            {/* Evidencias adicionales vinculadas */}
+            {evidences.length > 0 && (
+              <>
+                <tr>
+                  <td className={`${headerCell}`} colSpan={4}>EVIDENCIAS FOTOGRÁFICAS ADICIONALES VINCULADAS</td>
+                </tr>
+                {evidences.map(({ evidencia, identificacion }) => (
+                  <tr key={evidencia.id}>
+                    <td className={cellCenter}>—</td>
+                    <td className={`${cellCenter}`} style={{ height: '100px' }}>
+                      {thumbUrls[evidencia.id] ? (
+                        <img src={thumbUrls[evidencia.id]} alt={evidencia.nombre_archivo} className="max-h-[90px] mx-auto object-contain" />
+                      ) : (
+                        <span className="text-[8px] text-gray-400">{evidencia.nombre_archivo}</span>
+                      )}
+                    </td>
+                    <td className={`${cell} text-[8px]`}>
+                      <div className="font-mono text-[7px] text-gray-500 break-all">SHA-256: {evidencia.hash_sha256}</div>
+                      {identificacion && (
+                        <div className="mt-1 font-semibold">
+                          {identificacion.nombres} {identificacion.apellido_paterno} {identificacion.apellido_materno}
+                          {identificacion.cargo && <span className="font-normal text-gray-600"> — {identificacion.cargo}</span>}
+                        </div>
+                      )}
+                    </td>
+                    <td className={cellCenter}>
+                      <span className="text-[8px] text-gray-400 italic">N/A</span>
+                    </td>
+                  </tr>
+                ))}
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

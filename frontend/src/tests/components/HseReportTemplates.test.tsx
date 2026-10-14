@@ -3,28 +3,24 @@ import { render, screen } from '@testing-library/react';
 import { InspectionReportTemplate } from '@/components/reports/InspectionReportTemplate';
 import { AmonestacionReportTemplate } from '@/components/reports/AmonestacionReportTemplate';
 import type { ActividadRow } from '@/services/ActivityService';
+import { crearDemoF120LlerenaRios, PA_PERU_INFO } from '@/types/hseFormats';
 
-describe('Auditoría de Plantillas HSE (JSONB Structure)', () => {
+describe('Auditoría de Plantillas HSE Oficiales P.A. Perú (HSE-EL-F-120 y HSE-EL-F-128)', () => {
+  const demoF120 = crearDemoF120LlerenaRios();
+
   const mockInspectionActivity: ActividadRow = {
     id: 'act-ins-001',
-    codigo_referencia: 'ACT-2026-INSP-01',
+    codigo_referencia: 'HSE-EL-F-120-001',
     tipo_actividad: 'INSPECCION',
-    descripcion: 'Inspección periódica en planta de chancado primario.',
-    ubicacion: 'Frente Norte - Chancado',
+    descripcion: 'Inspección de Corte y Reconexión en Campo',
+    ubicacion: 'Sede Central - San Isidro',
     responsable_id: 'usr-1',
     responsable_nombre: 'Ing. Carlos Mendoza',
-    fecha_operacion: '2026-10-14T08:00:00Z',
+    fecha_operacion: '2026-10-05',
     estado_reporte: 'publicada',
-    datos_formato_json: {
-      items_evaluados: {
-        sec_1: { calificacion: 'S', observacion: 'Instalaciones y accesos despejados' },
-        sec_2: { calificacion: 'ER', observacion: 'Herramienta de impacto sin guarda de seguridad' },
-        sec_4: { calificacion: 'PI', observacion: 'Trabajador en altura sin línea de anclaje normada' },
-        sec_8: { calificacion: 'NA', observacion: 'Sin químicos almacenados en el área' },
-      },
-    },
-    creado_en: '2026-10-14T08:30:00Z',
-    actualizado_en: '2026-10-14T08:30:00Z',
+    datos_formato_json: demoF120 as any,
+    creado_en: '2026-10-05T08:30:00Z',
+    actualizado_en: '2026-10-05T08:30:00Z',
   };
 
   const mockAmonestacionActivity: ActividadRow = {
@@ -35,30 +31,39 @@ describe('Auditoría de Plantillas HSE (JSONB Structure)', () => {
     ubicacion: 'Taller de Soldadura',
     responsable_id: 'usr-1',
     responsable_nombre: 'Ing. Miguel Salazar',
-    fecha_operacion: '2026-10-14T10:30:00Z',
+    fecha_operacion: '2026-10-14',
     estado_reporte: 'pendiente',
     datos_formato_json: {
-      datos_amonestado: {
+      tipo_formato: 'HSE_EL_F_128',
+      codigo_documento: 'HSE-EL-F-128',
+      version: '01',
+      amonestado: {
         apellidos_nombres: 'García Pérez, Raúl',
         dni: '45678901',
         cargo: 'Operario Soldador',
         empresa: 'Contratista Metales SAC',
         ubicacion: 'Taller de Soldadura',
-        fecha_hora: '2026-10-14 10:15',
+        fecha: '2026-10-14',
+        hora: '10:15',
       },
-      supervisores_responsables: {
-        capataz_cuadrilla: 'Jorge Benítez',
-        ingeniero_responsable: 'Ing. Miguel Salazar',
-        actividad_en_ejecucion: 'Fabricación de ductos de ventilación',
+      responsables: {
+        capataz_jefe_cuadrilla: 'Jorge Benítez',
+        ing_responsable: 'Ing. Miguel Salazar',
+        actividad_trabajo: 'Fabricación de ductos de ventilación',
       },
-      motivo_amonestacion: {
-        codigo_motivo: '02',
-        detalle_motivo: 'El colaborador no usaba casco de seguridad ni tapones auditivos en zona de ruido elevado.',
-      },
+      relato_razon: 'El colaborador no usaba casco de seguridad ni tapones auditivos en zona de ruido elevado.',
+      motivo_codigo: '02_ACTO_SUBESTANDAR',
+      detalle_motivo: 'Art. 45 RIIST - Uso obligatorio de EPP en zonas de alto ruido',
       nivel_riesgo: '01_INTOLERABLE',
-      accion_inmediata_hechos: 'Paralización de la labor y entrega inmediata de EPP con reinducción.',
-      sancion_aplicada_risst: '02_SUSPENSION',
+      otro_riesgo: '',
+      accion_inmediata: 'Paralización de la labor y entrega inmediata de EPP con reinducción.',
+      sancion_codigo: '02_SUSPENSION',
       dias_suspension: 3,
+      validacion: {
+        realizado_por: { nombre: 'Ing. Miguel Salazar', cargo: 'Inspector HSE' },
+        aprobado_por: { nombre: 'Ing. Residente / Jefe HSE', cargo: 'Supervisión HSE' },
+        aceptado_por: { nombre: 'García Pérez, Raúl', cargo: 'Operario Soldador' },
+      },
     },
     creado_en: '2026-10-14T10:35:00Z',
     actualizado_en: '2026-10-14T10:35:00Z',
@@ -102,33 +107,34 @@ describe('Auditoría de Plantillas HSE (JSONB Structure)', () => {
     },
   ];
 
-  it('InspectionReportTemplate renderiza sin errores de tipado con el checklist de 15 secciones y JSONB', () => {
+  it('InspectionReportTemplate renderiza sin errores de tipado con el checklist oficial de 15 secciones y 4 páginas', () => {
     render(
       <InspectionReportTemplate
         activity={mockInspectionActivity}
         evidences={mockEvidences}
-        inspectorName="Ing. Supervisor Prueba"
+        inspectorName="Ing. Carlos Mendoza"
         inspectorCargo="Supervisor General HSE"
       />
     );
 
-    // Encabezado
-    expect(screen.getByText(/REPORTE DE INSPECCIÓN HSE/i)).toBeInTheDocument();
-    expect(screen.getByText('ACT-2026-INSP-01')).toBeInTheDocument();
-    expect(screen.getByText('Frente Norte - Chancado')).toBeInTheDocument();
+    // Encabezado corporativo oficial P.A. Perú
+    expect(screen.getAllByText(/PROFESIONALES ASOCIADOS/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(new RegExp(PA_PERU_INFO.ruc, 'i')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/INSPECCIÓN DE SEGURIDAD, SALUD EN EL TRABAJO Y MEDIO AMBIENTE/i).length).toBeGreaterThanOrEqual(1);
 
-    // Secciones del checklist evaluadas
-    expect(screen.getByText('Instalaciones, Estructura y Almacén')).toBeInTheDocument();
-    expect(screen.getByText('Herramientas Manuales y Eléctricas')).toBeInTheDocument();
-    expect(screen.getByText('Comportamiento y Observación Preventiva')).toBeInTheDocument();
+    // Secciones del catálogo oficial F120
+    expect(screen.getAllByText(/INSTALACION \/ ESTRUCTURA \/ ALMACEN/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/INSTRUCCIÓN PREVIA EN CAMPO/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/EQUIPOS DE PROTECCIÓN PERSONAL/i).length).toBeGreaterThanOrEqual(1);
 
-    // Observaciones del JSONB
-    expect(screen.getByText('Instalaciones y accesos despejados')).toBeInTheDocument();
-    expect(screen.getByText('Herramienta de impacto sin guarda de seguridad')).toBeInTheDocument();
+    // Caso Llerena Ríos: Personal Involucrado y Hallazgo
+    expect(screen.getAllByText(/VÍCTOR ALFONSO LLERENA RÍOS/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/quemadura eléctrica/i).length).toBeGreaterThanOrEqual(1);
 
-    // Evidencias fotográficas y hash SHA-256
-    expect(screen.getByText('foto_andamio_01.jpg')).toBeInTheDocument();
-    expect(screen.getByText('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')).toBeInTheDocument();
+    // Control de páginas (Páginas estructuradas del documento)
+    expect(screen.getByText('1 de 4')).toBeInTheDocument();
+    expect(screen.getByText('3 de 4')).toBeInTheDocument();
+    expect(screen.getByText('4 de 4')).toBeInTheDocument();
   });
 
   it('AmonestacionReportTemplate renderiza sin errores con el formato oficial HSE-EL-F-128', () => {
@@ -136,19 +142,19 @@ describe('Auditoría de Plantillas HSE (JSONB Structure)', () => {
       <AmonestacionReportTemplate
         activity={mockAmonestacionActivity}
         evidences={mockEvidences}
-        inspectorName="Ing. Supervisor Prueba"
-        inspectorCargo="Supervisor General HSE"
+        inspectorName="Ing. Miguel Salazar"
+        inspectorCargo="Inspector HSE"
       />
     );
 
     // Membrete oficial
-    expect(screen.getByText(/REGISTRO DE AMONESTACIÓN • FORMATO HSE-EL-F-128/i)).toBeInTheDocument();
-    expect(screen.getByText('HSE-EL-F-128-009')).toBeInTheDocument();
+    expect(screen.getAllByText(/REGISTRO DE AMONESTACIÓN/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('HSE-EL-F-128').length).toBeGreaterThanOrEqual(1);
 
-    // 1. Datos del amonestado y firmas
+    // 1. Datos del amonestado
     const amonestadoElements = screen.getAllByText('García Pérez, Raúl');
     expect(amonestadoElements.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Operario Soldador')).toBeInTheDocument();
+    expect(screen.getAllByText('Operario Soldador').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Contratista Metales SAC')).toBeInTheDocument();
 
     // 2. Supervisores responsables
@@ -157,15 +163,17 @@ describe('Auditoría de Plantillas HSE (JSONB Structure)', () => {
 
     // 3. Motivo y detalle de los hechos
     expect(screen.getByText(/El colaborador no usaba casco de seguridad ni tapones auditivos/i)).toBeInTheDocument();
+    expect(screen.getByText(/Art. 45 RIIST/i)).toBeInTheDocument();
 
     // 4. Medida inmediata
     expect(screen.getByText(/Paralización de la labor y entrega inmediata de EPP/i)).toBeInTheDocument();
 
-    // 6. Sanción aplicada (Suspensión 3 días)
-    expect(screen.getByText(/\[X\] 02\. Suspensión \(3 días\)/i)).toBeInTheDocument();
+    // 5. Sanción aplicada (Suspensión 3 días)
+    expect(screen.getByText(/02\. Suspensión \(3 días\)/i)).toBeInTheDocument();
 
-    // Evidencias y validación forense
-    expect(screen.getByText(/foto_andamio_01.jpg/i)).toBeInTheDocument();
-    expect(screen.getByText(/Infractor Confirmado: Raúl García/i)).toBeInTheDocument();
+    // 6. Firmas de validación (3 casillas oficiales)
+    expect(screen.getByText('REALIZADO POR')).toBeInTheDocument();
+    expect(screen.getByText('APROBADO POR')).toBeInTheDocument();
+    expect(screen.getByText(/ACEPTADO POR \(TRABAJADOR\)/i)).toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { InspectionReportTemplate } from './InspectionReportTemplate';
 import { AmonestacionReportTemplate } from './AmonestacionReportTemplate';
@@ -6,6 +6,7 @@ import type { ActividadRow } from '@/services/ActivityService';
 import type { Database } from '@/types/database.types';
 import { Button } from '@/components/ui/button';
 import { Printer, FileText, AlertTriangle } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 export type LinkedEvidenceItem = {
   vinculo: Database['public']['Tables']['vinculos']['Row'];
@@ -26,17 +27,32 @@ export interface PdfExporterProps {
 export const PdfExporter: React.FC<PdfExporterProps> = ({
   actividad,
   evidenciasVinculadas,
+  bucketName = 'evidencias',
   inspectorName,
   inspectorCargo,
   onAfterPrint,
   className = '',
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
 
   const isAmonestacion = actividad.tipo_actividad === 'AMONESTACION';
   const documentTitle = isAmonestacion
     ? `Amonestacion_HSE_EL_F_128_${actividad.codigo_referencia}`
     : `Checklist_Inspeccion_${actividad.codigo_referencia}`;
+
+  // Resuelve URLs públicas de Storage para miniaturas
+  useEffect(() => {
+    const urls: Record<string, string> = {};
+    for (const item of evidenciasVinculadas) {
+      const path = item.evidencia.ruta_thumb || item.evidencia.ruta_storage;
+      if (path) {
+        const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
+        urls[item.evidencia.id] = data.publicUrl;
+      }
+    }
+    setThumbUrls(urls);
+  }, [evidenciasVinculadas, bucketName]);
 
   const handlePrint = useReactToPrint({
     contentRef: contentRef as any,
@@ -101,6 +117,7 @@ export const PdfExporter: React.FC<PdfExporterProps> = ({
               evidences={evidenciasVinculadas}
               inspectorName={inspectorName || actividad.responsable_nombre}
               inspectorCargo={inspectorCargo || 'Inspector HSE'}
+              thumbUrls={thumbUrls}
             />
           ) : (
             <InspectionReportTemplate
@@ -108,6 +125,7 @@ export const PdfExporter: React.FC<PdfExporterProps> = ({
               evidences={evidenciasVinculadas}
               inspectorName={inspectorName || actividad.responsable_nombre}
               inspectorCargo={inspectorCargo || 'Inspector HSE'}
+              thumbUrls={thumbUrls}
             />
           )}
         </div>

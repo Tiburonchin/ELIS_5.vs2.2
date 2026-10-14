@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ShieldCheck, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export interface LoginPageProps {
   onSuccess?: () => void;
@@ -16,6 +16,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
   const { login, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -125,15 +126,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
                 <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="login-password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isBusy}
-                  className="pl-9 text-xs h-9"
+                  className="pl-9 pr-9 text-xs h-9"
                   required
                 />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Ocultar clave' : 'Mostrar clave'}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer focus:outline-hidden"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
           </CardContent>
