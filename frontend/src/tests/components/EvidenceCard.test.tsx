@@ -56,13 +56,12 @@ describe('EvidenceCard Component', () => {
     expect(copyButton).toBeInTheDocument();
   });
 
-  it('asegura estrictamente que el botón "Extraer Fotocheck (OCR)" renderiza con el atributo disabled', () => {
+  it('asegura que el botón "Extraer Fotocheck (OCR)" está habilitado y es interactivo para el Módulo 4', () => {
     render(<EvidenceCard evidence={mockEvidence} />);
 
     const ocrButton = screen.getByRole('button', { name: /Extraer Fotocheck \(OCR\)/i });
     expect(ocrButton).toBeInTheDocument();
-    expect(ocrButton).toBeDisabled();
-    expect(ocrButton).toHaveAttribute('disabled');
+    expect(ocrButton).not.toBeDisabled();
   });
 
   it('obtiene y renderiza la miniatura de Supabase Storage', () => {
