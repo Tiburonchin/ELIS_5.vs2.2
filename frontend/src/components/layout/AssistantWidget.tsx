@@ -59,9 +59,9 @@ export const AssistantWidget: React.FC<AssistantWidgetProps> = ({
     <div
       data-testid="assistant-widget"
       className={cn(
-        'z-50 select-none',
+        'z-40 sm:z-50 select-none',
         defaultPosition === 'bottom-right'
-          ? 'fixed bottom-6 right-6 flex flex-col items-end gap-3'
+          ? 'fixed bottom-4 right-4 sm:bottom-6 sm:right-6 flex flex-col items-end gap-2 sm:gap-3 scale-90 sm:scale-100 origin-bottom-right'
           : 'relative inline-flex items-center',
         className
       )}
@@ -74,7 +74,7 @@ export const AssistantWidget: React.FC<AssistantWidgetProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="w-80 rounded-xl border bg-background/95 p-4 shadow-xl backdrop-blur-md dark:border-muted/50"
+            className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-xl border bg-background/95 p-4 shadow-xl backdrop-blur-md dark:border-muted/50"
           >
             <div className="flex items-center justify-between pb-2 border-b">
               <div className="flex items-center gap-2">

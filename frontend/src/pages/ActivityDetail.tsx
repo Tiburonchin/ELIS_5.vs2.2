@@ -633,21 +633,21 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* ── BARRA SUPERIOR DE NAVEGACIÓN Y ACCIONES ───────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-5 rounded-2xl border border-border shadow-xs">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-4 sm:p-5 rounded-2xl border border-border shadow-xs">
+        <div className="flex items-start sm:items-center gap-3">
           <Button
             type="button"
             variant="outline"
             size="icon"
             onClick={onBack}
-            className="cursor-pointer shrink-0 rounded-xl"
+            className="cursor-pointer shrink-0 rounded-xl mt-0.5 sm:mt-0"
             title="Volver a la lista de actividades"
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
 
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                 {currentActivity.codigo_referencia}
               </span>
@@ -662,27 +662,27 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
                 <span>Nube Conectada</span>
               </span>
             </div>
-            <h1 className="text-lg font-bold text-foreground mt-1">
+            <h1 className="text-base sm:text-lg font-bold text-foreground mt-1.5 break-words">
               {currentActivity.tipo_actividad.replace(/_/g, ' ')} &bull; {currentActivity.ubicacion}
             </h1>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Responsable: {currentActivity.responsable_nombre} &bull; Fecha: {currentActivity.fecha_operacion}
             </p>
           </div>
         </div>
 
-        {/* Acciones principales de cabecera */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Acciones principales de cabecera: ancho completo en móvil */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           {!isAmonestacion && (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleCargarDemoLlerenaRios}
-              className="cursor-pointer gap-1.5 text-xs font-semibold border-amber-500/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              className="cursor-pointer gap-1.5 text-xs font-semibold border-amber-500/40 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400 w-full sm:w-auto justify-center"
               title="Cargar automáticamente el caso real de Víctor Alfonso Llerena Ríos (05/10/2026)"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <span>Cargar Caso Real (Llerena Ríos)</span>
             </Button>
           )}
@@ -691,12 +691,12 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
             type="button"
             onClick={handleGuardarCambios}
             disabled={isSaving}
-            className="cursor-pointer gap-2 text-xs font-semibold h-9 shadow-xs"
+            className="cursor-pointer gap-2 text-xs font-semibold h-9 shadow-xs w-full sm:w-auto justify-center"
           >
             {isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
             ) : (
-              <Save className="w-4 h-4" />
+              <Save className="w-4 h-4 shrink-0" />
             )}
             <span>{isSaving ? 'Guardando en la nube...' : 'Guardar Formato HSE'}</span>
           </Button>
@@ -740,26 +740,28 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
            EDITOR TABBED FORMATO HSE-EL-F-120 (INSPECCIÓN DE CAMPO)
            ═══════════════════════════════════════════════════════════════════ */
         <Tabs defaultValue="datos" className="w-full space-y-4">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full h-auto p-1 bg-muted/60">
-            <TabsTrigger value="datos" className="text-xs py-2">
-              1. Datos & Personal
-            </TabsTrigger>
-            <TabsTrigger value="checklist" className="text-xs py-2 flex items-center gap-1.5">
-              <span>2. Checklist (15 Sec)</span>
-              {statsChecklist.er + statsChecklist.pi > 0 && (
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="levantamiento" className="text-xs py-2">
-              3. Levantamiento & Charla
-            </TabsTrigger>
-            <TabsTrigger value="evidencias" className="text-xs py-2">
-              4. Evidencias ({linkedItems.length})
-            </TabsTrigger>
-            <TabsTrigger value="pdf" className="text-xs py-2 font-bold text-primary">
-              5. Reporte PDF A4
-            </TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto pb-1 mb-4 no-scrollbar">
+            <TabsList className="h-auto flex flex-nowrap sm:grid sm:grid-cols-5 w-max sm:w-full min-w-full justify-start gap-1.5 p-1.5 bg-muted/60 rounded-xl">
+              <TabsTrigger value="datos" className="text-xs py-2 px-3 shrink-0 whitespace-nowrap">
+                1. Datos &amp; Personal
+              </TabsTrigger>
+              <TabsTrigger value="checklist" className="text-xs py-2 px-3 shrink-0 whitespace-nowrap flex items-center gap-1.5">
+                <span>2. Checklist (15 Sec)</span>
+                {statsChecklist.er + statsChecklist.pi > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="levantamiento" className="text-xs py-2 px-3 shrink-0 whitespace-nowrap">
+                3. Levantamiento &amp; Charla
+              </TabsTrigger>
+              <TabsTrigger value="evidencias" className="text-xs py-2 px-3 shrink-0 whitespace-nowrap">
+                4. Evidencias ({linkedItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="pdf" className="text-xs py-2 px-3 shrink-0 whitespace-nowrap font-bold text-primary">
+                5. Reporte PDF A4
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB 1: DATOS GENERALES Y PERSONAL INVOLUCRADO */}
           <TabsContent value="datos" className="space-y-4">
@@ -1514,17 +1516,19 @@ export const ActivityDetail: React.FC<ActivityDetailProps> = ({
            EDITOR TABBED FORMATO HSE-EL-F-128 (REGISTRO DE AMONESTACIÓN)
            ═══════════════════════════════════════════════════════════════════ */
         <Tabs defaultValue="f128" className="w-full space-y-4">
-          <TabsList className="grid grid-cols-3 w-full h-auto p-1 bg-muted/60">
-            <TabsTrigger value="f128" className="text-xs py-2 font-bold">
-              1. Formato HSE-EL-F-128 (5 Bloques)
-            </TabsTrigger>
-            <TabsTrigger value="evidencias" className="text-xs py-2">
-              2. Evidencias ({linkedItems.length})
-            </TabsTrigger>
-            <TabsTrigger value="pdf" className="text-xs py-2 font-bold text-destructive">
-              3. Reporte PDF A4
-            </TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto pb-1 mb-4 no-scrollbar">
+            <TabsList className="h-auto flex flex-nowrap sm:grid sm:grid-cols-3 w-max sm:w-full min-w-full justify-start gap-1.5 p-1.5 bg-muted/60 rounded-xl">
+              <TabsTrigger value="f128" className="text-xs py-2 px-3 shrink-0 whitespace-nowrap font-bold">
+                1. Formato HSE-EL-F-128 (5 Bloques)
+              </TabsTrigger>
+              <TabsTrigger value="evidencias" className="text-xs py-2 px-3 shrink-0 whitespace-nowrap">
+                2. Evidencias ({linkedItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="pdf" className="text-xs py-2 px-3 shrink-0 whitespace-nowrap font-bold text-destructive">
+                3. Reporte PDF A4
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB 1: FORMULARIO HSE-EL-F-128 */}
           <TabsContent value="f128" className="space-y-4">

@@ -145,6 +145,87 @@ export class EvidenceService extends BaseSupabaseService<
       hash: hashSHA256,
     };
   }
+
+  /**
+   * Limpia rutas de storage eliminando prefijos redundantes o slash iniciales:
+   * ej: 'evidencias/originals/...' -> 'originals/...'
+   */
+  static cleanStoragePath(path: string | null | undefined): string {
+    if (!path) return '';
+    let cleaned = path.trim().replace(/^\/+/, '');
+    if (cleaned.startsWith('evidencias/')) {
+      cleaned = cleaned.replace(/^evidencias\//, '');
+    }
+    return cleaned;
+  }
+
+  /**
+   * Resuelve de forma dual y resiliente la URL de la imagen de una evidencia.
+   * - Limpia rutas con prefijo duplicado 'evidencias/'.
+   * - Soporta Signed URLs (si el bucket es privado) y getPublicUrl directo.
+   * - Permite elegir entre 'thumb' (con fallback a original) u 'original'.
+   */
+  async getEvidenceImageUrl(
+    evidence: Pick<EvidenciaRow, 'ruta_storage' | 'ruta_thumb'>,
+    options: {
+      type?: 'thumb' | 'original';
+      expiresIn?: number;
+      bucketName?: string;
+    } = {}
+  ): Promise<string> {
+    const { type = 'thumb', expiresIn = 3600, bucketName = 'evidencias' } = options;
+    const cleanStorage = EvidenceService.cleanStoragePath(evidence.ruta_storage);
+    const cleanThumb = EvidenceService.cleanStoragePath(evidence.ruta_thumb);
+
+    const primaryPath = type === 'thumb' ? (cleanThumb || cleanStorage) : (cleanStorage || cleanThumb);
+    if (!primaryPath) return '';
+
+    try {
+      // Intentar obtener Signed URL (ideal para buckets privados con regla :ro)
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(primaryPath, expiresIn);
+
+      if (!signedError && signedData?.signedUrl) {
+        return signedData.signedUrl;
+      }
+    } catch {
+      // Ignorar error de signed URL y recurrir a getPublicUrl
+    }
+
+    // Fallback a getPublicUrl si el bucket es público o no soporta signed url anónima
+    const { data: publicData } = supabase.storage.from(bucketName).getPublicUrl(primaryPath);
+    return publicData?.publicUrl || '';
+  }
+
+  /**
+   * Resuelve URLs en lote para un conjunto de evidencias con optimización y fallback
+   */
+  async getEvidenceBatchImageUrls(
+    evidences: Array<Pick<EvidenciaRow, 'id' | 'ruta_storage' | 'ruta_thumb'>>,
+    options: {
+      type?: 'thumb' | 'original';
+      expiresIn?: number;
+      bucketName?: string;
+    } = {}
+  ): Promise<Record<string, string>> {
+    const results: Record<string, string> = {};
+    const { type = 'thumb', expiresIn = 3600, bucketName = 'evidencias' } = options;
+
+    await Promise.all(
+      evidences.map(async (ev) => {
+        try {
+          const url = await this.getEvidenceImageUrl(ev, { type, expiresIn, bucketName });
+          if (url) results[ev.id] = url;
+        } catch (e) {
+          console.warn(`[EvidenceService] No se pudo resolver URL para evidencia ${ev.id}:`, e);
+        }
+      })
+    );
+
+    return results;
+  }
 }
 
 export const evidenceService = new EvidenceService();
+

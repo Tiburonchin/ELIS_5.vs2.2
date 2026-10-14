@@ -430,10 +430,11 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
           </Button>
         </Card>
       ) : viewMode === 'table' ? (
-        /* Vista en Tabla shadcn */
+        /* Vista en Tabla shadcn con scroll horizontal fluido en móvil */
         <Card className="border-border overflow-hidden">
-          <Table>
-            <TableHeader>
+          <div className="w-full overflow-x-auto">
+            <Table>
+              <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="w-[140px] font-semibold">Código Ref.</TableHead>
                 <TableHead className="font-semibold">Tipo de Actividad</TableHead>
@@ -510,6 +511,7 @@ export const ActivitiesManager: React.FC<ActivitiesManagerProps> = ({ onSelectAc
               })}
             </TableBody>
           </Table>
+          </div>
         </Card>
       ) : (
         /* Vista en Tarjetas shadcn Card */

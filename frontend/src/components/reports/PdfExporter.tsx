@@ -6,7 +6,7 @@ import type { ActividadRow } from '@/services/ActivityService';
 import type { Database } from '@/types/database.types';
 import { Button } from '@/components/ui/button';
 import { Printer, FileText, AlertTriangle } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { evidenceService } from '@/services/EvidenceService';
 
 export type LinkedEvidenceItem = {
   vinculo: Database['public']['Tables']['vinculos']['Row'];
@@ -41,17 +41,24 @@ export const PdfExporter: React.FC<PdfExporterProps> = ({
     ? `Amonestacion_HSE_EL_F_128_${actividad.codigo_referencia}`
     : `Checklist_Inspeccion_${actividad.codigo_referencia}`;
 
-  // Resuelve URLs públicas de Storage para miniaturas
+  // Resuelve URLs de Storage de forma dual (Signed URLs con fallback a Public URLs y limpieza de prefijo)
   useEffect(() => {
-    const urls: Record<string, string> = {};
-    for (const item of evidenciasVinculadas) {
-      const path = item.evidencia.ruta_thumb || item.evidencia.ruta_storage;
-      if (path) {
-        const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
-        urls[item.evidencia.id] = data.publicUrl;
+    let isMounted = true;
+    const fetchUrls = async () => {
+      const items = evidenciasVinculadas.map((item) => item.evidencia);
+      const batchMap = await evidenceService.getEvidenceBatchImageUrls(items, {
+        type: 'thumb',
+        bucketName,
+      });
+      if (isMounted) {
+        setThumbUrls(batchMap);
       }
-    }
-    setThumbUrls(urls);
+    };
+
+    fetchUrls();
+    return () => {
+      isMounted = false;
+    };
   }, [evidenciasVinculadas, bucketName]);
 
   const handlePrint = useReactToPrint({

@@ -64,10 +64,10 @@ describe('EvidenceCard Component', () => {
     expect(ocrButton).not.toBeDisabled();
   });
 
-  it('obtiene y renderiza la miniatura de Supabase Storage', () => {
+  it('obtiene y renderiza la miniatura de Supabase Storage', async () => {
     render(<EvidenceCard evidence={mockEvidence} />);
 
-    const img = screen.getByRole('img', { name: /inspeccion_operario_01\.jpg/i });
+    const img = await screen.findByRole('img', { name: /inspeccion_operario_01\.jpg/i });
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute(
       'src',

@@ -244,8 +244,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="w-full mt-2">
-          <TabsList className="grid w-full grid-cols-3 h-9 p-1 bg-muted/60 rounded-lg">
-            <TabsTrigger value="perfil" className="text-xs gap-1.5 cursor-pointer font-medium">
+          <TabsList className="h-auto flex flex-wrap sm:grid sm:grid-cols-3 w-full justify-start gap-1 p-1 bg-muted/60 rounded-xl mb-3">
+            <TabsTrigger value="perfil" className="text-xs py-2 px-2.5 gap-1.5 cursor-pointer font-medium flex-1 sm:flex-initial">
               <User className="h-3.5 w-3.5" />
               <span>Firma HSE</span>
             </TabsTrigger>
